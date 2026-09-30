@@ -17,13 +17,14 @@ export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
   suffix = '',
   className = '',
 }) => {
-  const [displayValue, setDisplayValue] = useState(value);
-  const startValueRef = useRef(value);
+  const safeTarget = typeof value === 'number' && !isNaN(value) ? value : 0;
+  const [displayValue, setDisplayValue] = useState<number>(safeTarget);
+  const startValueRef = useRef<number>(safeTarget);
   const startTimeRef = useRef<number | null>(null);
   const animFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
-    startValueRef.current = displayValue;
+    startValueRef.current = typeof displayValue === 'number' && !isNaN(displayValue) ? displayValue : 0;
     startTimeRef.current = null;
 
     const animate = (timestamp: number) => {
@@ -32,14 +33,14 @@ export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
 
       // Ease-out cubic curve
       const easeOut = 1 - Math.pow(1 - progress, 3);
-      const current = startValueRef.current + (value - startValueRef.current) * easeOut;
+      const current = startValueRef.current + (safeTarget - startValueRef.current) * easeOut;
 
       setDisplayValue(current);
 
       if (progress < 1) {
         animFrameRef.current = requestAnimationFrame(animate);
       } else {
-        setDisplayValue(value);
+        setDisplayValue(safeTarget);
       }
     };
 
@@ -48,12 +49,16 @@ export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
     return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
-  }, [value, duration]);
+  }, [safeTarget, duration]);
+
+  const formatted = typeof displayValue === 'number' && !isNaN(displayValue) 
+    ? displayValue.toFixed(decimals) 
+    : (0).toFixed(decimals);
 
   return (
     <span className={`inline-block tabular-nums font-mono-tech ${className}`}>
       {prefix}
-      {displayValue.toFixed(decimals)}
+      {formatted}
       {suffix}
     </span>
   );

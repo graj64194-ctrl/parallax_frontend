@@ -54,17 +54,17 @@ export const LunarSimulator: React.FC = () => {
             <span className="font-mono-tech text-xs text-[#8C8C89] tracking-wider uppercase font-semibold">
               <ScrambleText text={explainMode ? 'VIRTUAL SENSOR LABORATORY' : 'CONTROLLED MULTI-SENSOR STRESS BENCH'} />
             </span>
-            <span className="px-2 py-0.5 rounded-none text-[10px] font-mono-tech bg-[#111111] border border-[#262626] text-[#8C8C89] font-semibold">
-              ILLUSTRATIVE SIMULATION
+            <span className="px-2 py-0.5 rounded-none text-[10px] font-mono-tech bg-[#2E2211] border border-[#5E4218] text-[#E0A855] font-semibold">
+              SYNTHETIC / SIMULATED
             </span>
           </div>
           <h3 className="font-sans text-xl font-bold text-[#F7F7F5] mt-1">
-            <ScrambleText text={explainMode ? 'Watch PARALLAX Adapt As Difficulty Changes' : 'Adaptive Model Reaction Under Controlled Environmental Stress'} />
+            <ScrambleText text={explainMode ? 'Synthetic Stress Testing & Model Reaction' : 'Synthetic Stress Testing: Adaptive Model Reaction'} />
           </h3>
           <p className="text-xs text-[#8C8C89] mt-1 max-w-3xl font-sans leading-relaxed">
             {explainMode
-              ? 'Tweak the sliders below to see how shifting shadows and camera noise challenge the algorithms. Notice how PARALLAX switches models dynamically!'
-              : 'Demonstrates the core USP: adjusting solar elevation, scale disparity, or sensor noise immediately updates diagnosed difficulty and re-ranks candidate models.'}
+              ? 'SYNTHETIC / SIMULATED SANDBOX: Tweak parameters to test algorithm breaking points. This sandbox is for controlled demonstration, not actual Chandrayaan-2 flight measurements.'
+              : 'SYNTHETIC / SIMULATED: Controlled stress-testing sandbox reproducing spaceborne CCD responses, shadow dynamics, and octave scale blur. Distinct from verified flight telemetry.'}
           </p>
         </div>
 
@@ -276,62 +276,30 @@ export const LunarSimulator: React.FC = () => {
           </div>
         </div>
 
-        {/* Selected Strategy & Explanation */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-          <div className="md:col-span-8 space-y-2">
+        {/* Selected Strategy & Environmental Stress Impact */}
+        <div className="p-4 rounded-none border border-[#262626] bg-[#161616] flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-left">
+          <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="px-2 py-0.5 rounded-none text-[10px] font-mono-tech font-semibold bg-[#1E1E1E] text-[#F7F7F5] border border-[#383838] flex items-center gap-1">
                 <Star className="h-3 w-3 fill-[#F7F7F5]" />
-                RANK #1 ADAPTIVE SELECTION
+                ADAPTIVE CANDIDATE
               </span>
               <span className="font-mono-tech text-xs text-[#86D88E] font-semibold">
                 {selectedModel.name}
               </span>
             </div>
             <p className="text-xs text-[#8C8C89] font-sans leading-relaxed">
-              <strong className="text-[#F7F7F5]">Why Selected: </strong>
-              {selectedModel.selectionRationale}
+              <strong className="text-[#F7F7F5]">Simulated Stress Impact: </strong>
+              {simulationParams.sunElevationAngle < 8
+                ? 'Grazing sun angle creates extreme crater shadows. Multi-scale phase congruency required to prevent false shadow edge tracking.'
+                : simulationParams.sensorNoiseSigma > 10
+                ? 'Elevated sensor noise degrades intensity gradients. Fast NLM and CLAHE filtering engaged.'
+                : 'Nominal simulated stress parameters within registration operating envelope.'}
             </p>
           </div>
-
-          {/* Quality Gate Status */}
-          <div className="md:col-span-4 p-3 rounded-none sm:rounded-sm border border-[#262626] bg-[#161616] space-y-1 text-left">
-            <div className="text-[10px] font-mono-tech text-[#8C8C89] uppercase">
-              QUALITY GATE OUTCOME:
-            </div>
-            <div className={`font-mono-tech text-xs font-semibold ${qualityGate.color.split(' ')[0]}`}>
-              {qualityGate.status}
-            </div>
-            <p className="text-[10px] text-[#8C8C89] font-sans leading-tight">
-              {qualityGate.note}
-            </p>
-          </div>
-        </div>
-
-        {/* Dynamic Model Candidates mini-ranker */}
-        <div className="pt-2 border-t border-[#262626] space-y-1.5">
-          <div className="text-[10px] font-mono-tech text-[#8C8C89] uppercase">
-            DYNAMIC CANDIDATE SUITABILITY RANKINGS:
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-            {modelCandidates.map((c) => (
-              <div 
-                key={c.id}
-                className={`p-2 rounded-none border text-left font-mono-tech text-xs transition-colors ${
-                  c.isRecommended
-                    ? 'bg-[#1C1C1C] border-[#F7F7F5] text-[#F7F7F5] font-semibold'
-                    : 'bg-[#111111] border-[#262626] text-[#8C8C89]'
-                }`}
-              >
-                <div className="flex justify-between text-[10px]">
-                  <span>#{c.rank}</span>
-                  <span className={c.isRecommended ? 'text-[#86D88E]' : 'text-[#646462]'}>
-                    {c.suitabilityScore}%
-                  </span>
-                </div>
-                <div className="truncate text-[11px] mt-0.5">{c.name.split('(')[0]}</div>
-              </div>
-            ))}
+          <div className="shrink-0 font-mono-tech text-[10px] text-[#A0A0A0] bg-[#111111] px-3 py-2 border border-[#262626]">
+            <div>STRESS MODE: ACTIVE</div>
+            <div className="text-[#86D88E]">SIMULATION PREVIEW ONLY</div>
           </div>
         </div>
       </div>

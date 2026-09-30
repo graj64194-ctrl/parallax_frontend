@@ -14,7 +14,8 @@ import {
   Calendar,
   Sun,
   Maximize,
-  Compass
+  Compass,
+  FolderOpen
 } from 'lucide-react';
 
 export const PairSelectionControlArea: React.FC = () => {
@@ -34,6 +35,12 @@ export const PairSelectionControlArea: React.FC = () => {
     pipelineProgress,
     useTmcBridge,
     toggleTmcBridge,
+    isObservable,
+    observabilityReason,
+    preprocessingAuto,
+    togglePreprocessingAuto,
+    claheEnabled,
+    toggleClaheEnabled,
     setCursorLabel,
   } = useParallax();
 
@@ -56,64 +63,104 @@ export const PairSelectionControlArea: React.FC = () => {
       {/* ─── 3-COLUMN TOP CONTROL AREA ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         
-        {/* ═══ COLUMN 1: SOURCE IMAGE (A) (4 Cols) ═══ */}
+        {/* ═══ COLUMN 1: SOURCE A (4 Cols) ═══ */}
         <div className="lg:col-span-4 rounded-none sm:rounded-sm p-4 border border-[#262626] bg-[#161616] flex flex-col justify-between space-y-3">
           {/* Header */}
           <div className="flex items-center justify-between pb-2 border-b border-[#262626]">
             <div className="flex items-center gap-2">
               <Camera className="h-4 w-4 text-[#A0A0A0]" />
               <span className="font-mono-tech text-xs font-bold text-[#F7F7F5] tracking-wider uppercase">
-                SOURCE IMAGE (A)
+                SOURCE A
               </span>
             </div>
             <span className="px-2 py-0.5 rounded-none text-[10px] font-mono-tech bg-[#111111] border border-[#262626] text-[#A0A0A0] font-semibold">
-              {sourceProduct.instrument} • {sourceProduct.gsdDisplay}
+              {sourceProduct.id.startsWith('custom-') ? 'CUSTOM' : sourceProduct.instrument} • {sourceProduct.gsdDisplay}
             </span>
           </div>
 
-          {/* Product Dropdown Selector */}
+          {/* Product Dropdown Selector + Local File Browser */}
           <div className="space-y-1">
             <label className="text-[10px] font-mono-tech text-[#8C8C89] uppercase tracking-wider flex items-center justify-between">
               <span>SELECT OBSERVATION / PRODUCT:</span>
-              <span className="text-[#F7F7F5] font-semibold">{sourceProduct.regionId.toUpperCase()}</span>
+              <span className="text-[#F7F7F5] font-semibold truncate max-w-[160px]" title={sourceProduct.label}>
+                {sourceProduct.label ? sourceProduct.label.replace(/^Chandrayaan-2\s*/i, '').replace(/^(OHRC|TMC-2|IIRS)\s*/i, '').split(' (')[0] : sourceProduct.regionId.toUpperCase()}
+              </span>
             </label>
-            <select
-              value={sourceProduct.id}
-              onChange={(e) => {
-                const found = availableProducts.find(p => p.id === e.target.value);
-                if (found) setSourceProduct(found);
-              }}
-              className="w-full bg-[#111111] border border-[#333333] rounded-none px-2.5 py-1.5 text-xs font-mono-tech text-[#F7F7F5] focus:outline-none focus:border-[#555555] transition-colors"
-            >
-              <optgroup label="Chandrayaan-2 OHRC (0.25 - 0.32 m/px)">
-                {ohrcProducts.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.instrument} • {p.label} ({p.gsdDisplay})
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="Chandrayaan-2 TMC-2 (5.0 m/px)">
-                {tmcProducts.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.instrument} • {p.label}
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="Chandrayaan-2 IIRS (80 m/px)">
-                {iirsProducts.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.instrument} • {p.label}
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="Reference Lunar Baselines">
-                {refProducts.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.instrumentLabel} • {p.label}
-                  </option>
-                ))}
-              </optgroup>
-            </select>
+            <div className="flex items-center gap-1.5">
+              <select
+                value={sourceProduct.id}
+                onChange={(e) => {
+                  const found = availableProducts.find(p => p.id === e.target.value);
+                  if (found) setSourceProduct(found);
+                }}
+                className="flex-1 min-w-0 bg-[#111111] border border-[#333333] rounded-none px-2.5 py-1.5 text-xs font-mono-tech text-[#F7F7F5] focus:outline-none focus:border-[#555555] transition-colors"
+              >
+                {sourceProduct.id.startsWith('custom-') && (
+                  <optgroup label="Inserted Local Image">
+                    <option value={sourceProduct.id}>
+                      {sourceProduct.label} (Custom Image)
+                    </option>
+                  </optgroup>
+                )}
+                <optgroup label="Chandrayaan-2 OHRC (0.25 - 0.32 m/px)">
+                  {ohrcProducts.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.label.replace(/^OHRC\s*/i, '')} ({p.gsdDisplay})
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Chandrayaan-2 TMC-2 (5.0 m/px)">
+                  {tmcProducts.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.label.replace(/^TMC-2\s*/i, '')} ({p.gsdDisplay})
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Chandrayaan-2 IIRS (80 m/px)">
+                  {iirsProducts.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.label.replace(/^IIRS\s*/i, '')} ({p.gsdDisplay})
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Reference Lunar Baselines">
+                  {refProducts.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.label} ({p.gsdDisplay})
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+
+              <label 
+                className="px-2 py-1.5 border border-[#333333] bg-[#1a1a1a] hover:bg-[#252525] text-[10px] font-mono-tech text-[#F7F7F5] cursor-pointer flex items-center gap-1 transition-colors flex-shrink-0"
+                title="Browse and select image from any folder on your computer"
+              >
+                <FolderOpen className="h-3 w-3 text-[#A0A0A0]" />
+                <span className="hidden sm:inline">BROWSE</span>
+                <input 
+                  type="file" 
+                  accept="image/*,.tif,.tiff,.png,.jpg,.jpeg" 
+                  className="hidden" 
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const url = URL.createObjectURL(file);
+                      setSourceProduct({
+                        ...sourceProduct,
+                        id: `custom-src-${Date.now()}`,
+                        productId: file.name,
+                        label: file.name,
+                        instrument: 'Custom',
+                        instrumentLabel: 'Custom Inserted Image',
+                        thumbnailUrl: url,
+                        sensorDescription: `Local custom image: ${file.name}`
+                      });
+                    }
+                  }} 
+                />
+              </label>
+            </div>
           </div>
 
           {/* Thumbnail Preview with HUD Overlay */}
@@ -132,8 +179,11 @@ export const PairSelectionControlArea: React.FC = () => {
                 ORBIT #{sourceProduct.orbitNumber}
               </div>
             )}
-            <div className="absolute bottom-2 left-2 px-1.5 py-0.5 rounded-none text-[9px] font-mono-tech bg-[#111111]/95 text-[#F7F7F5] truncate max-w-[80%] border border-[#262626]">
-              {sourceProduct.productId}
+            <div 
+              className="absolute bottom-2 left-2 px-2 py-0.5 rounded-none text-[9px] font-mono-tech bg-[#111111]/95 text-[#F7F7F5] font-semibold truncate max-w-[85%] border border-[#262626]"
+              title={sourceProduct.label || sourceProduct.productId}
+            >
+              {sourceProduct.label ? sourceProduct.label.replace(/^Chandrayaan-2\s*/i, '').replace(/^OHRC\s*/i, '') : sourceProduct.productId}
             </div>
             <button
               onClick={() => setPreviewZoomModal(sourceProduct)}
@@ -220,13 +270,13 @@ export const PairSelectionControlArea: React.FC = () => {
           {/* Pair Physical Diagnostic Summary */}
           <div className="space-y-2 font-mono-tech">
             <div className="flex items-center justify-between p-2.5 rounded-none bg-[#111111] border border-[#262626]">
-              <div className="space-y-0.5 text-left">
-                <span className="text-[10px] text-[#8C8C89] uppercase">PAIR DIFFICULTY:</span>
-                <div className="text-xs font-bold text-[#F7F7F5]">
-                  {sourceProduct.instrument} ↔ {targetProduct.instrument}
+              <div className="space-y-0.5 text-left min-w-0 flex-1 mr-2">
+                <span className="text-[10px] text-[#8C8C89] uppercase">ACTIVE PAIR:</span>
+                <div className="text-xs font-bold text-[#F7F7F5] truncate max-w-[260px]" title={`${sourceProduct.label} ↔ ${targetProduct.label}`}>
+                  {sourceProduct.label ? sourceProduct.label.replace(/^Chandrayaan-2\s*/i, '').replace(/^(OHRC|TMC-2|IIRS)\s*/i, '').split(' (')[0] : sourceProduct.productId} ↔ {targetProduct.label ? targetProduct.label.replace(/^Chandrayaan-2\s*/i, '').replace(/^(OHRC|TMC-2|IIRS)\s*/i, '').split(' (')[0] : targetProduct.productId}
                 </div>
               </div>
-              <span className={`px-2.5 py-0.5 rounded-none text-xs font-semibold uppercase border ${getDifficultyColor(pairCharacterization.overallDifficulty)}`}>
+              <span className={`px-2.5 py-0.5 rounded-none text-xs font-semibold uppercase border shrink-0 ${getDifficultyColor(pairCharacterization.overallDifficulty)}`}>
                 {pairCharacterization.overallDifficulty}
               </span>
             </div>
@@ -270,8 +320,8 @@ export const PairSelectionControlArea: React.FC = () => {
 
             {/* Quick Rank Snapshot */}
             <div className="pt-1 border-t border-[#262626] flex items-center justify-between text-[10px] text-[#646462]">
-              <span>RANKED: 1. {modelCandidates[0]?.name.split('(')[0]} (96)</span>
-              <span>2. {modelCandidates[1]?.name.split('(')[0]} (88)</span>
+              <span>RANKED: 1. {modelCandidates[0]?.name.split('(')[0]} ({modelCandidates[0]?.suitabilityScore || 0})</span>
+              <span>2. {modelCandidates[1]?.name.split('(')[0]} ({modelCandidates[1]?.suitabilityScore || 0})</span>
             </div>
           </div>
 
@@ -298,20 +348,92 @@ export const PairSelectionControlArea: React.FC = () => {
             </div>
           )}
 
-          {/* Primary Action Button: RUN REGISTRATION (High contrast off-white) */}
+          {/* 7.2 Observability / Geographic Overlap Gate */}
+          <div className={`p-2.5 rounded-none border text-left font-mono-tech text-xs space-y-1 ${
+            isObservable 
+              ? 'bg-[#1A2E1C]/40 border-[#2E5E32] text-[#86D88E]' 
+              : 'bg-[#2E1616]/60 border-[#5E2626] text-[#E57373]'
+          }`}>
+            <div className="flex items-center justify-between text-[10px] font-bold tracking-wider uppercase">
+              <span className="flex items-center gap-1.5">
+                {isObservable ? <CheckCircle2 className="h-3.5 w-3.5 text-[#86D88E]" /> : <AlertTriangle className="h-3.5 w-3.5 text-[#E57373]" />}
+                {isObservable ? 'GEOMETRIC OBSERVABILITY' : 'REGISTRATION BLOCKED'}
+              </span>
+              <span>{isObservable ? 'PASSED' : 'DISJOINT'}</span>
+            </div>
+
+            {isObservable ? (
+              <div className="grid grid-cols-2 gap-1 text-[9.5px] text-[#A0A0A0] pt-0.5">
+                <span className="text-[#86D88E]">✓ Geographic overlap</span>
+                <span className="text-[#86D88E]">✓ Valid pixels &gt; 90%</span>
+                <span className="text-[#86D88E]">✓ Observable area</span>
+                <span className="text-[#86D88E]">✓ Registration candidate</span>
+              </div>
+            ) : (
+              <p className="text-[10px] font-sans text-[#E57373] leading-tight pt-0.5">
+                {observabilityReason} No valid 2-D geographic ground footprint overlap.
+              </p>
+            )}
+          </div>
+
+          {/* 7.3 Compact Preprocessing Controls */}
+          <div className="p-2.5 rounded-none bg-[#111111] border border-[#262626] space-y-1.5 text-left font-mono-tech text-xs">
+            <div className="flex items-center justify-between text-[10px]">
+              <span className="text-[#8C8C89] uppercase tracking-wider font-semibold">PREPROCESSING PIPELINE:</span>
+              <span className="text-[#86D88E]">{preprocessingAuto ? 'AUTO' : 'MANUAL'}</span>
+            </div>
+
+            <div className="flex items-center justify-between text-[8.5px] text-[#777774] border-b border-[#262626] pb-1">
+              <span>RAW</span>
+              <span>→</span>
+              <span>NORM</span>
+              <span>→</span>
+              <span>NLM</span>
+              <span>→</span>
+              <span>CLAHE</span>
+              <span>→</span>
+              <span className="text-[#86D88E] font-bold">READY</span>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 pt-0.5">
+              <button
+                onClick={togglePreprocessingAuto}
+                className={`px-2 py-0.5 text-[9.5px] border transition-colors ${
+                  preprocessingAuto ? 'bg-[#1C1C1C] border-[#86D88E] text-[#86D88E]' : 'bg-[#111111] border-[#333333] text-[#8C8C89]'
+                }`}
+              >
+                PREPROCESS: {preprocessingAuto ? 'AUTO' : 'CUSTOM'}
+              </button>
+
+              <button
+                onClick={toggleClaheEnabled}
+                className={`px-2 py-0.5 text-[9.5px] border transition-colors ${
+                  claheEnabled ? 'bg-[#1C1C1C] border-[#E0A855] text-[#E0A855]' : 'bg-[#111111] border-[#333333] text-[#8C8C89]'
+                }`}
+              >
+                CLAHE: {claheEnabled ? 'ON' : 'OFF'}
+              </button>
+            </div>
+          </div>
+
+          {/* Primary Action Button: RUN REGISTRATION PIPELINE */}
           <div className="pt-1">
             <button
               onClick={runCorrespondence}
-              disabled={isProcessing}
-              onMouseEnter={() => setCursorLabel('EXECUTE ADAPTIVE REGISTRATION')}
+              disabled={isProcessing || !isObservable}
+              onMouseEnter={() => setCursorLabel(isObservable ? 'EXECUTE ADAPTIVE REGISTRATION' : 'REGISTRATION BLOCKED')}
               onMouseLeave={() => setCursorLabel('')}
               className={`w-full py-2.5 px-4 rounded-none font-mono-tech text-xs tracking-wider font-bold flex items-center justify-center gap-2 transition-colors ${
-                isProcessing
+                !isObservable
+                  ? 'bg-[#222222] text-[#666666] border border-[#333333] cursor-not-allowed'
+                  : isProcessing
                   ? 'bg-[#222222] text-[#86D88E] border border-[#2E5E32] cursor-wait'
                   : 'bg-[#F7F7F5] text-[#111111] hover:bg-[#FFFFFF]'
               }`}
             >
-              {isProcessing ? (
+              {!isObservable ? (
+                <span>REGISTRATION BLOCKED (NO OVERLAP)</span>
+              ) : isProcessing ? (
                 <>
                   <div className="h-3 w-3 border border-[#86D88E] border-t-transparent rounded-full animate-spin" />
                   <span>EXECUTING STAGE: {pipelineProgress}%</span>
@@ -319,71 +441,111 @@ export const PairSelectionControlArea: React.FC = () => {
               ) : (
                 <>
                   <Play className="h-3 w-3 fill-current" />
-                  <span>RUN ADAPTIVE REGISTRATION</span>
+                  <span>RUN REGISTRATION PIPELINE</span>
                 </>
               )}
             </button>
           </div>
         </div>
 
-        {/* ═══ COLUMN 3: TARGET IMAGE (B) (4 Cols) ═══ */}
+        {/* ═══ COLUMN 3: SOURCE B (4 Cols) ═══ */}
         <div className="lg:col-span-4 rounded-none sm:rounded-sm p-4 border border-[#262626] bg-[#161616] flex flex-col justify-between space-y-3">
           {/* Header */}
           <div className="flex items-center justify-between pb-2 border-b border-[#262626]">
             <div className="flex items-center gap-2">
               <Compass className="h-4 w-4 text-[#A0A0A0]" />
               <span className="font-mono-tech text-xs font-bold text-[#F7F7F5] tracking-wider uppercase">
-                TARGET REFERENCE (B)
+                SOURCE B
               </span>
             </div>
             <span className="px-2 py-0.5 rounded-none text-[10px] font-mono-tech bg-[#111111] border border-[#262626] text-[#A0A0A0] font-semibold">
-              {targetProduct.instrument} • {targetProduct.gsdDisplay}
+              {targetProduct.id.startsWith('custom-') ? 'CUSTOM' : targetProduct.instrument} • {targetProduct.gsdDisplay}
             </span>
           </div>
 
-          {/* Product Dropdown Selector */}
+          {/* Product Dropdown Selector + Local File Browser */}
           <div className="space-y-1">
             <label className="text-[10px] font-mono-tech text-[#8C8C89] uppercase tracking-wider flex items-center justify-between">
-              <span>SELECT REFERENCE / PRODUCT:</span>
-              <span className="text-[#F7F7F5] font-semibold">{targetProduct.regionId.toUpperCase()}</span>
+              <span>SELECT OBSERVATION / PRODUCT:</span>
+              <span className="text-[#F7F7F5] font-semibold truncate max-w-[160px]" title={targetProduct.label}>
+                {targetProduct.label ? targetProduct.label.replace(/^Chandrayaan-2\s*/i, '').replace(/^(OHRC|TMC-2|IIRS)\s*/i, '').split(' (')[0] : targetProduct.regionId.toUpperCase()}
+              </span>
             </label>
-            <select
-              value={targetProduct.id}
-              onChange={(e) => {
-                const found = availableProducts.find(p => p.id === e.target.value);
-                if (found) setTargetProduct(found);
-              }}
-              className="w-full bg-[#111111] border border-[#333333] rounded-none px-2.5 py-1.5 text-xs font-mono-tech text-[#F7F7F5] focus:outline-none focus:border-[#555555] transition-colors"
-            >
-              <optgroup label="Chandrayaan-2 TMC-2 (5.0 m/px)">
-                {tmcProducts.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.instrument} • {p.label} ({p.gsdDisplay})
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="Chandrayaan-2 OHRC (0.25 - 0.32 m/px)">
-                {ohrcProducts.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.instrument} • {p.label}
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="Chandrayaan-2 IIRS (80 m/px)">
-                {iirsProducts.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.instrument} • {p.label}
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="Reference Lunar Baselines">
-                {refProducts.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.instrumentLabel} • {p.label}
-                  </option>
-                ))}
-              </optgroup>
-            </select>
+            <div className="flex items-center gap-1.5">
+              <select
+                value={targetProduct.id}
+                onChange={(e) => {
+                  const found = availableProducts.find(p => p.id === e.target.value);
+                  if (found) setTargetProduct(found);
+                }}
+                className="flex-1 min-w-0 bg-[#111111] border border-[#333333] rounded-none px-2.5 py-1.5 text-xs font-mono-tech text-[#F7F7F5] focus:outline-none focus:border-[#555555] transition-colors"
+              >
+                {targetProduct.id.startsWith('custom-') && (
+                  <optgroup label="Inserted Local Image">
+                    <option value={targetProduct.id}>
+                      {targetProduct.label} (Custom Image)
+                    </option>
+                  </optgroup>
+                )}
+                <optgroup label="Chandrayaan-2 TMC-2 (5.0 m/px)">
+                  {tmcProducts.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.label.replace(/^TMC-2\s*/i, '')} ({p.gsdDisplay})
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Chandrayaan-2 OHRC (0.25 - 0.32 m/px)">
+                  {ohrcProducts.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.label.replace(/^OHRC\s*/i, '')} ({p.gsdDisplay})
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Chandrayaan-2 IIRS (80 m/px)">
+                  {iirsProducts.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.label.replace(/^IIRS\s*/i, '')} ({p.gsdDisplay})
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Reference Lunar Baselines">
+                  {refProducts.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.label} ({p.gsdDisplay})
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+
+              <label 
+                className="px-2 py-1.5 border border-[#333333] bg-[#1a1a1a] hover:bg-[#252525] text-[10px] font-mono-tech text-[#F7F7F5] cursor-pointer flex items-center gap-1 transition-colors flex-shrink-0"
+                title="Browse and select image from any folder on your computer"
+              >
+                <FolderOpen className="h-3 w-3 text-[#A0A0A0]" />
+                <span className="hidden sm:inline">BROWSE</span>
+                <input 
+                  type="file" 
+                  accept="image/*,.tif,.tiff,.png,.jpg,.jpeg" 
+                  className="hidden" 
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const url = URL.createObjectURL(file);
+                      setTargetProduct({
+                        ...targetProduct,
+                        id: `custom-tgt-${Date.now()}`,
+                        productId: file.name,
+                        label: file.name,
+                        instrument: 'Custom',
+                        instrumentLabel: 'Custom Inserted Image',
+                        thumbnailUrl: url,
+                        sensorDescription: `Local custom image: ${file.name}`
+                      });
+                    }
+                  }} 
+                />
+              </label>
+            </div>
           </div>
 
           {/* Thumbnail Preview with HUD Overlay */}
@@ -402,8 +564,11 @@ export const PairSelectionControlArea: React.FC = () => {
                 ORBIT #{targetProduct.orbitNumber}
               </div>
             )}
-            <div className="absolute bottom-2 left-2 px-1.5 py-0.5 rounded-none text-[9px] font-mono-tech bg-[#111111]/95 text-[#F7F7F5] truncate max-w-[80%] border border-[#262626]">
-              {targetProduct.productId}
+            <div 
+              className="absolute bottom-2 left-2 px-2 py-0.5 rounded-none text-[9px] font-mono-tech bg-[#111111]/95 text-[#F7F7F5] font-semibold truncate max-w-[85%] border border-[#262626]"
+              title={targetProduct.label || targetProduct.productId}
+            >
+              {targetProduct.label ? targetProduct.label.replace(/^Chandrayaan-2\s*/i, '').replace(/^TMC-2\s*/i, '') : targetProduct.productId}
             </div>
             <button
               onClick={() => setPreviewZoomModal(targetProduct)}

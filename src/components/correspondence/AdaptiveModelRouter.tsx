@@ -13,6 +13,7 @@ export const AdaptiveModelRouter: React.FC = () => {
     toggleAnms,
     isSubpixelRefined,
     toggleSubpixelRefinement,
+    runModelTest,
     explainMode,
     setCursorLabel 
   } = useParallax();
@@ -142,11 +143,23 @@ export const AdaptiveModelRouter: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="pt-2 border-t border-[#EAEAE6] flex items-center justify-between text-[11px] font-mono-tech">
+                <div className="pt-2 border-t border-[#EAEAE6] flex items-center justify-between text-[11px] font-mono-tech gap-2">
                   <span className={isSelected ? 'text-[#111111] font-bold' : 'text-[#777775]'}>
                     {isSelected ? '● ACTIVE ENGINE' : 'SELECT ENGINE'}
                   </span>
-                  <ChevronRight className={`h-3.5 w-3.5 ${isSelected ? 'text-[#111111]' : 'text-[#999999]'}`} />
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        runModelTest(candidate.id as ModelId);
+                      }}
+                      className="px-2 py-0.5 rounded-none text-[9.5px] font-mono-tech bg-[#111111] text-[#F7F7F5] hover:bg-[#262626] border border-[#262626] transition-colors"
+                      title={`Run individual test for ${candidate.name}`}
+                    >
+                      TEST MODEL
+                    </button>
+                    <ChevronRight className={`h-3.5 w-3.5 ${isSelected ? 'text-[#111111]' : 'text-[#999999]'}`} />
+                  </div>
                 </div>
               </div>
             );

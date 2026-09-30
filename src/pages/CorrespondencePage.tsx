@@ -7,7 +7,7 @@ import { useParallax } from "../state/ParallaxContext"
 
 export const CorrespondencePage: React.FC = () => {
   const navigate = useNavigate()
-  const { sourceInstrument, targetInstrument, selectedRegion } = useParallax()
+  const { sourceInstrument, targetInstrument, selectedRegion, metrics } = useParallax()
 
   const handleRunAnalysis = () => {
     navigate("/analysis")
@@ -46,7 +46,7 @@ export const CorrespondencePage: React.FC = () => {
                 Inspect Mathematical Homography & Error Residuals
               </div>
               <p className="text-xs text-[#555555] font-sans max-w-xl">
-                Review estimated 3×3 projective transformation matrix H, 1.28 px RMSE distribution,
+                Review estimated 3×3 projective transformation matrix H, {metrics.candidateMatches > 0 ? `${metrics.rmse.toFixed(2)} px RMSE distribution` : 'reprojection residual error distribution'},
                 and Lowe ratio rejection histograms.
               </p>
             </div>

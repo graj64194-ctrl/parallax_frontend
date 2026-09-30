@@ -18,6 +18,19 @@ export interface SimulationParams {
   shadowThreshold: number; // 0 to 100
 }
 
+export type BackendConnectionStatus = 'connected' | 'disconnected' | 'checking';
+
+export interface BackendInfo {
+  status: 'ok' | 'degraded' | 'offline';
+  service?: string;
+  version?: string;
+  device?: string; // e.g. "cuda:0 (NVIDIA RTX 4090)" or "cpu"
+  torchVersion?: string;
+  opencvVersion?: string;
+  availableModels?: string[];
+  uptimeSeconds?: number;
+}
+
 export interface ParallaxAppState {
   explainMode: boolean; // false = Scientific Mode, true = Explain Mode
   selectedRegion: LunarRegion;
@@ -37,4 +50,7 @@ export interface ParallaxAppState {
   simulationParams: SimulationParams;
   cursorLabel: string;
   isDemoDataMode: boolean;
+  backendStatus: BackendConnectionStatus;
+  backendInfo: BackendInfo | null;
 }
+

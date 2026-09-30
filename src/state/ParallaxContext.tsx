@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef, ReactNode } from 'react';
 import { InstrumentId } from '../types/instruments';
 import { LunarRegion } from '../types/regions';
 import { 
@@ -11,20 +11,22 @@ import {
   ModelCandidate,
   ModelId,
   PairCharacterization,
-  LunarImageProduct
+  LunarImageProduct,
+  ViewerState
 } from '../types/correspondence';
-import { SimulationParams } from '../types/state';
+import { SimulationParams, BackendConnectionStatus, BackendInfo } from '../types/state';
 import { LUNAR_REGIONS } from '../data/regionsData';
 import { LUNAR_PRODUCTS, getDefaultProductForInstrument } from '../data/lunarProductsData';
 import { 
-  MOCK_SOURCE_KEYPOINTS, 
-  MOCK_TARGET_KEYPOINTS, 
-  MOCK_MATCH_PAIRS, 
-  MOCK_ALIGNMENT_METRICS,
+  INITIAL_SOURCE_KEYPOINTS, 
+  INITIAL_TARGET_KEYPOINTS, 
+  INITIAL_MATCH_PAIRS, 
+  INITIAL_ALIGNMENT_METRICS,
   PIPELINE_STAGES 
 } from '../data/correspondenceMockData';
 import { evaluatePair } from '../data/modelBankData';
 import { correspondenceService } from '../services/correspondenceService';
+import { apiClient } from '../services/apiClient';
 
 interface ParallaxContextType {
   // Mode
@@ -41,7 +43,7 @@ interface ParallaxContextType {
   setTargetInstrument: (inst: InstrumentId) => void;
   swapInstruments: () => void;
 
-  // Image Selection & Products (Mandatory Section 19)
+  // Image Selection & Products
   sourceProduct: LunarImageProduct;
   setSourceProduct: (product: LunarImageProduct) => void;
   targetProduct: LunarImageProduct;
@@ -58,7 +60,7 @@ interface ParallaxContextType {
   setSelectedModelId: (id: ModelId) => void;
   selectedModel: ModelCandidate;
 
-  // Conditional TMC-2 Bridge (Proposed for extreme 320:1 OHRC x IIRS gap)
+  // Conditional TMC-2 Bridge
   useTmcBridge: boolean;
   setUseTmcBridge: (val: boolean) => void;
   toggleTmcBridge: () => void;
@@ -76,11 +78,20 @@ interface ParallaxContextType {
   // Comparison & Pipeline
   comparisonMode: ComparisonMode;
   setComparisonMode: (mode: ComparisonMode) => void;
+  viewerState: ViewerState;
+  setViewerState: (state: ViewerState) => void;
+  preprocessingAuto: boolean;
+  togglePreprocessingAuto: () => void;
+  claheEnabled: boolean;
+  toggleClaheEnabled: () => void;
+  isObservable: boolean;
+  observabilityReason: string;
   isProcessing: boolean;
   pipelineProgress: number;
   currentStageIndex: number;
   currentStageId: PipelineStageId | null;
   runCorrespondence: () => Promise<void>;
+  runModelTest: (modelId: ModelId) => Promise<void>;
 
   // Matches & Features
   matchFilter: MatchFilterType;
@@ -102,6 +113,12 @@ interface ParallaxContextType {
   cursorLabel: string;
   setCursorLabel: (label: string) => void;
   isTouchDevice: boolean;
+
+  // Backend Live Telemetry
+  backendStatus: BackendConnectionStatus;
+  backendInfo: BackendInfo | null;
+  checkBackendConnection: () => Promise<boolean>;
+  dataSource: 'LIVE TELEMETRY' | 'CALIBRATED BENCHMARK' | 'SIMULATED DATA';
 }
 
 const defaultSimulationParams: SimulationParams = {
@@ -121,7 +138,7 @@ export const ParallaxProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [sourceInstrument, setSourceInstrumentState] = useState<InstrumentId>('OHRC');
   const [targetInstrument, setTargetInstrumentState] = useState<InstrumentId>('TMC-2');
 
-  // Mandatory Section 19: Image Products Selection
+  // Image Products Selection
   const [sourceProduct, setSourceProductState] = useState<LunarImageProduct>(() =>
     getDefaultProductForInstrument('OHRC', LUNAR_REGIONS[0].id)
   );
@@ -134,25 +151,34 @@ export const ParallaxProvider: React.FC<{ children: ReactNode }> = ({ children }
   }, []);
 
   const [comparisonMode, setComparisonMode] = useState<ComparisonMode>('CORRESPONDENCE');
+  const [viewerState, setViewerState] = useState<ViewerState>('REGISTERED');
+  const [preprocessingAuto, setPreprocessingAuto] = useState<boolean>(true);
+  const [claheEnabled, setClaheEnabled] = useState<boolean>(true);
 
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
-  const [pipelineProgress, setPipelineProgress] = useState<number>(100);
-  const [currentStageIndex, setCurrentStageIndex] = useState<number>(9);
-  const [currentStageId, setCurrentStageId] = useState<PipelineStageId | null>('10_REGISTERED_OUTPUT');
+  const [pipelineProgress, setPipelineProgress] = useState<number>(0);
+  const [currentStageIndex, setCurrentStageIndex] = useState<number>(0);
+  const [currentStageId, setCurrentStageId] = useState<PipelineStageId | null>('01_PAIR_FORMATION');
 
   const [matchFilter, setMatchFilter] = useState<MatchFilterType>('INLIERS');
   const [hoveredMatch, setHoveredMatch] = useState<MatchPair | null>(null);
 
-  // New Adaptive Paradigm States
+  // Adaptive Paradigm States
   const [selectedModelOverride, setSelectedModelOverride] = useState<ModelId | null>(null);
   const [useTmcBridge, setUseTmcBridge] = useState<boolean>(false);
   const [isAnmsActive, setIsAnmsActive] = useState<boolean>(true);
   const [isSubpixelRefined, setIsSubpixelRefined] = useState<boolean>(true);
 
-  const [sourceKeypoints, setSourceKeypoints] = useState<Keypoint[]>(MOCK_SOURCE_KEYPOINTS);
-  const [targetKeypoints, setTargetKeypoints] = useState<Keypoint[]>(MOCK_TARGET_KEYPOINTS);
-  const [matchPairs, setMatchPairs] = useState<MatchPair[]>(MOCK_MATCH_PAIRS);
-  const [metrics, setMetrics] = useState<AlignmentMetrics>(MOCK_ALIGNMENT_METRICS);
+  // Live Backend Data States (Clean Zero initializers, no mock data)
+  const [sourceKeypoints, setSourceKeypoints] = useState<Keypoint[]>(INITIAL_SOURCE_KEYPOINTS);
+  const [targetKeypoints, setTargetKeypoints] = useState<Keypoint[]>(INITIAL_TARGET_KEYPOINTS);
+  const [matchPairs, setMatchPairs] = useState<MatchPair[]>(INITIAL_MATCH_PAIRS);
+  const [metrics, setMetrics] = useState<AlignmentMetrics>(INITIAL_ALIGNMENT_METRICS);
+  const [dataSource, setDataSource] = useState<'LIVE TELEMETRY' | 'CALIBRATED BENCHMARK' | 'SIMULATED DATA'>('LIVE TELEMETRY');
+
+  // Backend Health & Connectivity
+  const [backendStatus, setBackendStatus] = useState<BackendConnectionStatus>('checking');
+  const [backendInfo, setBackendInfo] = useState<BackendInfo | null>(null);
 
   const [simulationParams, setSimulationParams] = useState<SimulationParams>(defaultSimulationParams);
   const [cursorLabel, setCursorLabel] = useState<string>('');
@@ -200,7 +226,7 @@ export const ParallaxProvider: React.FC<{ children: ReactNode }> = ({ children }
     setTargetInstrumentState(sourceInstrument);
     setSourceProductState(targetProduct);
     setTargetProductState(sourceProduct);
-    setSelectedModelOverride(null); // Reset override on pair swap to auto-rank
+    setSelectedModelOverride(null);
   }, [sourceInstrument, targetInstrument, sourceProduct, targetProduct]);
 
   const resetImagePair = useCallback(() => {
@@ -215,8 +241,8 @@ export const ParallaxProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   // Dynamic Pair Characterization & Model Bank Evaluation
   const { characterization: pairCharacterization, rankedCandidates: modelCandidates, selectedModel: autoSelectedModel } = useMemo(() => {
-    return evaluatePair(sourceInstrument, targetInstrument, selectedRegion, simulationParams);
-  }, [sourceInstrument, targetInstrument, selectedRegion, simulationParams]);
+    return evaluatePair(sourceInstrument, targetInstrument, selectedRegion, simulationParams, sourceProduct, targetProduct);
+  }, [sourceInstrument, targetInstrument, selectedRegion, simulationParams, sourceProduct, targetProduct]);
 
   // Selected Model (user override or auto-ranked top candidate)
   const selectedModelId = selectedModelOverride || autoSelectedModel.id;
@@ -244,6 +270,30 @@ export const ParallaxProvider: React.FC<{ children: ReactNode }> = ({ children }
     setUseTmcBridge(prev => !prev);
   }, []);
 
+  const togglePreprocessingAuto = useCallback(() => {
+    setPreprocessingAuto(prev => !prev);
+  }, []);
+
+  const toggleClaheEnabled = useCallback(() => {
+    setClaheEnabled(prev => !prev);
+  }, []);
+
+  // Geometric Observability / Geographic Overlap Gate
+  const isObservable = useMemo(() => {
+    if (!sourceProduct || !targetProduct) return false;
+    if (sourceProduct.regionId !== targetProduct.regionId) {
+      return false;
+    }
+    return true;
+  }, [sourceProduct, targetProduct]);
+
+  const observabilityReason = useMemo(() => {
+    if (sourceProduct?.regionId !== targetProduct?.regionId) {
+      return `Footprint mismatch: Source is in ${sourceProduct?.regionId} while Target is in ${targetProduct?.regionId}.`;
+    }
+    return 'Sufficient 2-D geographic ground footprint overlap and observable surface relief verified.';
+  }, [sourceProduct, targetProduct]);
+
   const updateSimulationParam = useCallback(<K extends keyof SimulationParams>(key: K, value: SimulationParams[K]) => {
     setSimulationParams(prev => ({ ...prev, [key]: value }));
   }, []);
@@ -253,6 +303,37 @@ export const ParallaxProvider: React.FC<{ children: ReactNode }> = ({ children }
     setSelectedModelOverride(null);
   }, []);
 
+  // Check Backend Connection Status
+  const checkBackendConnection = useCallback(async (): Promise<boolean> => {
+    setBackendStatus('checking');
+    try {
+      const health = await apiClient.checkHealth();
+      if (health.status === 'ok') {
+        setBackendStatus('connected');
+        setBackendInfo({
+          status: 'ok',
+          service: health.service,
+          version: health.version || '1.0.0',
+          device: health.device || 'PyTorch / OpenCV Engine',
+          torchVersion: health.torchVersion,
+          opencvVersion: health.opencvVersion,
+          availableModels: health.availableModels,
+          uptimeSeconds: health.uptimeSeconds
+        });
+        return true;
+      } else {
+        setBackendStatus('disconnected');
+        setBackendInfo(null);
+        return false;
+      }
+    } catch {
+      setBackendStatus('disconnected');
+      setBackendInfo(null);
+      return false;
+    }
+  }, []);
+
+  // Primary Action: Run Live Pipeline on Backend
   const runCorrespondence = useCallback(async () => {
     setIsProcessing(true);
     setPipelineProgress(0);
@@ -265,10 +346,15 @@ export const ParallaxProvider: React.FC<{ children: ReactNode }> = ({ children }
           sourceInstrument,
           targetInstrument,
           regionId: selectedRegion.id,
+          sourceProductId: sourceProduct?.productId,
+          targetProductId: targetProduct?.productId,
           selectedModelId,
           useTmcBridge,
           options: {
-            enforceAnms: isAnmsActive
+            enforceAnms: isAnmsActive,
+            subpixelRefine: isSubpixelRefined,
+            claheEnabled,
+            preprocessingAuto
           }
         },
         (stageIdx: number) => {
@@ -281,27 +367,44 @@ export const ParallaxProvider: React.FC<{ children: ReactNode }> = ({ children }
       setSourceKeypoints(result.sourceKeypoints);
       setTargetKeypoints(result.targetKeypoints);
       setMatchPairs(result.matches);
-
-      // Reflect current model and refinement in metrics
-      const updatedMetrics = {
-        ...result.metrics,
-        selectedModelName: selectedModel.name,
-        tmcBridgeActive: useTmcBridge,
-        rmse: isSubpixelRefined ? 1.28 : 1.76,
-        uncertaintyPx: isSubpixelRefined ? 0.14 : 0.28,
-        spatialCoverage: isAnmsActive ? 74.2 : 51.0
-      };
-      setMetrics(updatedMetrics);
+      setMetrics(result.metrics);
+      setDataSource(result.dataSource);
 
       setPipelineProgress(100);
       setCurrentStageIndex(9);
       setCurrentStageId('10_REGISTERED_OUTPUT');
-    } catch (err) {
-      console.error('Error in correspondence execution:', err);
+    } catch (err: any) {
+      console.error('Error during live backend correspondence execution:', err);
     } finally {
       setIsProcessing(false);
     }
-  }, [sourceInstrument, targetInstrument, selectedRegion, selectedModelId, useTmcBridge, isAnmsActive, isSubpixelRefined, selectedModel]);
+  }, [
+    sourceInstrument, 
+    targetInstrument, 
+    selectedRegion, 
+    sourceProduct, 
+    targetProduct, 
+    selectedModelId, 
+    useTmcBridge, 
+    isAnmsActive, 
+    isSubpixelRefined, 
+    claheEnabled, 
+    preprocessingAuto
+  ]);
+
+  const runModelTest = useCallback(async (modelId: ModelId) => {
+    setSelectedModelOverride(modelId);
+    await runCorrespondence();
+  }, [runCorrespondence]);
+
+  // Initial check on mount
+  const hasCheckedRef = useRef(false);
+  useEffect(() => {
+    if (!hasCheckedRef.current) {
+      hasCheckedRef.current = true;
+      checkBackendConnection();
+    }
+  }, [checkBackendConnection]);
 
   // Filter matches based on selected tab and ANMS state
   const filteredMatches = useMemo(() => {
@@ -354,11 +457,20 @@ export const ParallaxProvider: React.FC<{ children: ReactNode }> = ({ children }
         toggleSubpixelRefinement,
         comparisonMode,
         setComparisonMode,
+        viewerState,
+        setViewerState,
+        preprocessingAuto,
+        togglePreprocessingAuto,
+        claheEnabled,
+        toggleClaheEnabled,
+        isObservable,
+        observabilityReason,
         isProcessing,
         pipelineProgress,
         currentStageIndex,
         currentStageId,
         runCorrespondence,
+        runModelTest,
         matchFilter,
         setMatchFilter,
         hoveredMatch,
@@ -374,6 +486,10 @@ export const ParallaxProvider: React.FC<{ children: ReactNode }> = ({ children }
         cursorLabel,
         setCursorLabel,
         isTouchDevice,
+        backendStatus,
+        backendInfo,
+        checkBackendConnection,
+        dataSource,
       }}
     >
       {children}

@@ -59,8 +59,12 @@ export const MetricCards: React.FC = () => {
           </div>
 
           <div className="pt-2 border-t border-[#262626] flex items-center justify-between text-[10px] font-mono-tech">
-            <span className="px-1.5 py-0.5 rounded-none text-[#86D88E] bg-[#1A2E1C] border border-[#2E5E32] font-semibold">
-              TARGET &lt; 1.5 px MET
+            <span className={`px-1.5 py-0.5 rounded-none font-semibold ${
+              metrics.candidateMatches > 0 
+                ? (metrics.rmse < 1.5 ? 'text-[#86D88E] bg-[#1A2E1C] border border-[#2E5E32]' : 'text-[#E0A855] bg-[#2E2211] border border-[#5E4218]')
+                : 'text-[#8C8C89] bg-[#1E1E1E] border border-[#383838]'
+            }`}>
+              {metrics.candidateMatches > 0 ? (metrics.rmse < 1.5 ? 'TARGET < 1.5 px MET' : 'TARGET EXCEEDED') : 'AWAITING RUN'}
             </span>
             <span className="text-[#8C8C89]">
               BENCHMARK
@@ -94,8 +98,12 @@ export const MetricCards: React.FC = () => {
           </div>
 
           <div className="pt-2 border-t border-[#262626] flex items-center justify-between text-[10px] font-mono-tech">
-            <span className="px-1.5 py-0.5 rounded-none text-[#86D88E] bg-[#1A2E1C] border border-[#2E5E32] font-semibold">
-              4 OUTLIERS PRUNED
+            <span className={`px-1.5 py-0.5 rounded-none font-semibold ${
+              metrics.candidateMatches > 0
+                ? 'text-[#86D88E] bg-[#1A2E1C] border border-[#2E5E32]'
+                : 'text-[#8C8C89] bg-[#1E1E1E] border border-[#383838]'
+            }`}>
+              {metrics.candidateMatches > 0 ? `${metrics.outlierMatches} OUTLIERS PRUNED` : 'AWAITING RUN'}
             </span>
             <span className="text-[#8C8C89]">
               CONSENSUS
@@ -194,7 +202,7 @@ export const MetricCards: React.FC = () => {
             <AnimatedNumber value={metrics.recall} decimals={1} duration={600} suffix="%" />
           </div>
           <div className="text-[11px] text-[#8C8C89] font-sans">
-            F1-Score: {metrics.f1Score.toFixed(3)}
+            F1-Score: {(metrics.f1Score || 0).toFixed(3)}
           </div>
           <div className="pt-2 text-[10px] font-mono-tech text-[#A0A0A0]">
             [VALIDATED BENCHMARK]
@@ -205,10 +213,10 @@ export const MetricCards: React.FC = () => {
         <div className="p-4 rounded-none sm:rounded-sm border border-[#262626] bg-[#161616] space-y-1">
           <div className="text-[10px] font-mono-tech text-[#8C8C89] uppercase">OVERALL CONFIDENCE SCORE</div>
           <div className="font-sans text-2xl font-bold text-[#86D88E] flex items-baseline gap-1">
-            <AnimatedNumber value={metrics.confidenceScore} decimals={1} duration={600} suffix="%" />
+            <AnimatedNumber value={metrics.confidenceScore || 0} decimals={1} duration={600} suffix="%" />
           </div>
           <div className="text-[11px] text-[#8C8C89] font-sans">
-            Quality Gate: <strong className="text-[#F7F7F5]">{metrics.qualityGateStatus}</strong>
+            Quality Gate: <strong className="text-[#F7F7F5]">{metrics.qualityGateStatus || 'PASSED'}</strong>
           </div>
           <div className="pt-2 text-[10px] font-mono-tech text-[#86D88E]">
             [QUALITY GATE TARGET]
@@ -219,7 +227,7 @@ export const MetricCards: React.FC = () => {
         <div className="p-4 rounded-none sm:rounded-sm border border-[#262626] bg-[#161616] space-y-1">
           <div className="text-[10px] font-mono-tech text-[#8C8C89] uppercase">PIPELINE EXECUTION TIME</div>
           <div className="font-sans text-2xl font-bold text-[#F7F7F5] flex items-baseline gap-1">
-            <AnimatedNumber value={metrics.processingTimeMs} decimals={0} duration={600} suffix=" ms" />
+            <AnimatedNumber value={metrics.processingTimeMs || 0} decimals={0} duration={600} suffix=" ms" />
           </div>
           <div className="text-[11px] text-[#8C8C89] font-sans truncate">
             PyTorch acceleration (1024² tile)

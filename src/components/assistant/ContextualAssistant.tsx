@@ -13,6 +13,8 @@ export const ContextualAssistant: React.FC = () => {
     selectedRegion, 
     sourceInstrument, 
     targetInstrument, 
+    sourceProduct,
+    targetProduct,
     metrics, 
     explainMode,
     setCursorLabel,
@@ -21,12 +23,15 @@ export const ContextualAssistant: React.FC = () => {
     isAnmsActive,
   } = useParallax();
 
+  const sourceName = sourceProduct?.label ? sourceProduct.label.replace(/^Chandrayaan-2\s*/i, '').split(' (')[0] : sourceInstrument;
+  const targetName = targetProduct?.label ? targetProduct.label.replace(/^Chandrayaan-2\s*/i, '').split(' (')[0] : targetInstrument;
+
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [inputQuery, setInputQuery] = useState<string>('');
   const [messages, setMessages] = useState<Message[]>([
     {
       sender: 'assistant',
-      text: `Greetings. I am your PARALLAX Scientific Terminal. Current observation pair: ${sourceInstrument} × ${targetInstrument} over ${selectedRegion.name}. Pair difficulty is characterized as ${pairCharacterization?.overallDifficulty || 'MEDIUM'} (Scale ratio: ${pairCharacterization?.scaleRatio.toFixed(1)}:1, Modality: ${pairCharacterization?.modalityDifference}). Selected correspondence engine: ${selectedModelId.toUpperCase()}. Reprojection RMSE is ${metrics.rmse.toFixed(2)} px with ANMS spatial dispersion at ${metrics.spatialCoverage.toFixed(1)}%. [Calibrated Benchmark Data]. How may I assist your scientific analysis?`,
+      text: `Greetings. I am your PARALLAX Scientific Terminal. Current observation pair: ${sourceName} × ${targetName} over ${selectedRegion.name}. Pair difficulty is characterized as ${pairCharacterization?.overallDifficulty || 'MEDIUM'} (Scale ratio: ${pairCharacterization?.scaleRatio.toFixed(1)}:1, Modality: ${pairCharacterization?.modalityDifference}). Selected correspondence engine: ${selectedModelId.toUpperCase()}. Reprojection RMSE is ${metrics.rmse.toFixed(2)} px with ANMS spatial dispersion at ${metrics.spatialCoverage.toFixed(1)}%. [Calibrated Benchmark Data]. How may I assist your scientific analysis?`,
       timestamp: 'Session Init'
     }
   ]);
@@ -58,7 +63,7 @@ export const ContextualAssistant: React.FC = () => {
       const q = query.toLowerCase();
 
       if (q.includes('selected') || q.includes('model') || q.includes('router') || q.includes('why rift') || q.includes('why sift')) {
-        reply = `The Adaptive Model Router evaluated this pair (${sourceInstrument} × ${targetInstrument}) and characterized difficulty as ${pairCharacterization?.overallDifficulty}. It selected ${selectedModelId.toUpperCase()} because: ${
+        reply = `The Adaptive Model Router evaluated this pair (${sourceName} × ${targetName}) and characterized difficulty as ${pairCharacterization?.overallDifficulty}. It selected ${selectedModelId.toUpperCase()} because: ${
           selectedModelId === 'RIFT' 
             ? 'extreme polar shadow migration and radiation variation between passes renders gradient magnitude unstable, so RIFT uses phase congruency and maximum moments to find invariant structural boundaries.' 
             : selectedModelId === 'HOPC'
@@ -68,17 +73,19 @@ export const ContextualAssistant: React.FC = () => {
             : 'its structural invariance properties provide the highest suitability score for this specific pair geometry.'
         }`;
       } else if (q.includes('anms') || q.includes('spatial') || q.includes('distribution') || q.includes('raw match')) {
-        reply = `In planetary remote sensing, a high raw match count is dangerous if 90% of points cluster on a single sunlit crater rim! ANMS (Adaptive Non-Maximal Suppression) computes local suppression radii so keypoints are uniformly dispersed across the entire orbital field of view. This increases convex-hull spatial coverage from ~51% to ${metrics.spatialCoverage.toFixed(1)}%, preventing mathematical singularity during homography or epipolar matrix estimation.`;
+        reply = `In planetary remote sensing, a high raw match count is dangerous if 90% of points cluster on a single sunlit crater rim! ANMS (Adaptive Non-Maximal Suppression) computes local suppression radii so keypoints are uniformly dispersed across the entire orbital field of view. ${metrics.candidateMatches > 0 ? `This achieved ${metrics.spatialCoverage.toFixed(1)}% convex-hull spatial coverage` : 'This maximizes convex-hull spatial coverage across the sensor FOV'}, preventing mathematical singularity during homography or epipolar matrix estimation.`;
       } else if (q.includes('bridge') || q.includes('tmc-2 bridge') || q.includes('tmc2')) {
         reply = `The TMC-2 intermediate bridge is a proposed conditional strategy triggered when the ground-sampling distance ratio exceeds 100:1 (such as registering OHRC at 0.25 m/px directly against IIRS at 80 m/px, a 320:1 gap!). Rather than attempting a single catastrophic leap, PARALLAX proposes registering OHRC to TMC-2 (20:1), and subsequently TMC-2 to IIRS (16:1), composing the transformations transitively: H_composite = H_TMC2_to_IIRS · H_OHRC_to_TMC2.`;
       } else if (q.includes('uncertainty') || q.includes('trustworthy') || q.includes('quality gate')) {
-        reply = `Registration trustworthiness is quantified through three orthogonal checks: (1) Reprojection RMSE (${metrics.rmse.toFixed(2)} px vs 1.50 px target gate); (2) Spatial Dispersion via ANMS (74.2% convex-hull coverage vs 60% gate); (3) Covariance-based uncertainty ellipse (±${metrics.uncertaintyPx.toFixed(2)} px 1-sigma bound). Every metric is categorized as MEASURED BENCHMARK, TARGET GATE, or SIMULATED.`;
+        reply = `Registration trustworthiness is quantified through three orthogonal checks: (1) Reprojection RMSE (${metrics.candidateMatches > 0 ? `${metrics.rmse.toFixed(2)} px vs 1.50 px target gate` : 'target gate < 1.50 px'}); (2) Spatial Dispersion via ANMS (${metrics.candidateMatches > 0 ? `${metrics.spatialCoverage.toFixed(1)}% convex-hull coverage vs 60% gate` : 'target gate > 60%'}); (3) Covariance-based uncertainty ellipse (${metrics.candidateMatches > 0 ? `±${metrics.uncertaintyPx.toFixed(2)} px 1-sigma bound` : '1-sigma error bound'}). Every metric is categorized as MEASURED BENCHMARK, TARGET GATE, or SIMULATED.`;
       } else if (q.includes('rmse') || q.includes('pixel error')) {
-        reply = `An RMSE of ${metrics.rmse.toFixed(2)} pixels means that across all ${metrics.inlierMatches} verified inliers, the root mean square discrepancy between reprojected and target coordinates is ${metrics.rmse.toFixed(2)} px. Sub-pixel local refinement (ECC) further optimizes alignment inside 31x31 patches to target <0.5 px.`;
+        reply = metrics.candidateMatches > 0 
+          ? `An RMSE of ${metrics.rmse.toFixed(2)} pixels means that across all ${metrics.inlierMatches} verified inliers, the root mean square discrepancy between reprojected and target coordinates is ${metrics.rmse.toFixed(2)} px. Sub-pixel local refinement (ECC) further optimizes alignment inside 31x31 patches to target <0.5 px.`
+          : 'Reprojection RMSE quantifies the subpixel Euclidean discrepancy between transformed source landmarks and target coordinates. Target gate is <1.5 px for Chandrayaan-2 lunar mapping.';
       } else if (q.includes('new to') || q.includes('simple') || q.includes('explain')) {
         reply = `Think of it this way: different spacecraft cameras take very different photos—some are ultra-close zoom shots, some are wide 3D scans, and some are heat/mineral color scans. If you try to match them with just one simple tool, it gets confused by shifting crater shadows. PARALLAX first looks at the two photos, decides how tricky the match is, picks the smartest matching tool for the job, spreads the match points out across the whole crater, and double-checks the math so lunar landing craft don't get lost.`;
       } else {
-        reply = `Session context: ${sourceInstrument} × ${targetInstrument} on ${selectedRegion.name}. Evaluated difficulty: ${pairCharacterization?.overallDifficulty}. Inlier consensus: ${metrics.inlierRatio.toFixed(1)}% (${metrics.inlierMatches}/${metrics.candidateMatches}). Model: ${selectedModelId.toUpperCase()} with ANMS ${isAnmsActive ? 'ACTIVE' : 'BYPASS'}. [Calibrated Demonstration Benchmark].`;
+        reply = `Session context: ${sourceName} × ${targetName} on ${selectedRegion.name}. Evaluated difficulty: ${pairCharacterization?.overallDifficulty}. Inlier consensus: ${metrics.candidateMatches > 0 ? `${metrics.inlierRatio.toFixed(1)}% (${metrics.inlierMatches}/${metrics.candidateMatches})` : 'Awaiting Run'}. Model: ${selectedModelId.toUpperCase()} with ANMS ${isAnmsActive ? 'ACTIVE' : 'BYPASS'}.`;
       }
 
       const assistantMsg: Message = {
@@ -119,7 +126,7 @@ export const ContextualAssistant: React.FC = () => {
                   <span>PARALLAX TELEMETRY TERMINAL</span>
                 </div>
                 <div className="text-[10px] font-mono-tech text-[#8C8C89]">
-                  {sourceInstrument} × {targetInstrument} • {selectedRegion.name}
+                  {sourceName} × {targetName} • {selectedRegion.name}
                 </div>
               </div>
             </div>

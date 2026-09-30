@@ -8,12 +8,16 @@ export const DualImageComparator: React.FC = () => {
   const { 
     sourceInstrument, 
     targetInstrument, 
-    sourceProduct,
-    targetProduct,
+    sourceProduct, 
+    targetProduct, 
     selectedRegion, 
     comparisonMode, 
     setComparisonMode, 
-    setCursorLabel
+    viewerState, 
+    setViewerState, 
+    setCursorLabel,
+    isProcessing,
+    matchPairs
   } = useParallax();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -116,6 +120,24 @@ export const DualImageComparator: React.FC = () => {
             </div>
           )}
 
+          {/* Viewer State (Raw -> Processed -> Registered) */}
+          <div className="flex items-center gap-1 border-l border-white/10 pl-3">
+            <span className="text-[10px] text-lunar-500 font-semibold mr-1">VIEW:</span>
+            {(['ORIGINAL', 'PREPROCESSED', 'REGISTERED'] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => setViewerState(v)}
+                className={`px-2 py-0.5 rounded text-[10px] font-mono-tech border transition-all ${
+                  viewerState === v
+                    ? 'bg-cyan-accent/20 border-cyan-accent text-cyan-accent font-bold'
+                    : 'bg-space-950 border-white/10 text-lunar-400 hover:text-white'
+                }`}
+              >
+                {v === 'ORIGINAL' ? 'RAW' : v === 'PREPROCESSED' ? 'PROCESSED' : 'REGISTERED'}
+              </button>
+            ))}
+          </div>
+
           {/* Region Coordinate Readout */}
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-space-950 border border-white/10 text-lunar-300">
             <Compass className="h-3.5 w-3.5 text-cyan-accent" />
@@ -138,20 +160,20 @@ export const DualImageComparator: React.FC = () => {
             {/* SOURCE IMAGE PANEL */}
             <div 
               className="relative h-full w-full overflow-hidden bg-space-950 group"
-              onMouseEnter={() => setCursorLabel(`INSPECT ${sourceInstrument}`)}
+              onMouseEnter={() => setCursorLabel(`INSPECT ${sourceProduct.label || sourceInstrument}`)}
               onMouseLeave={() => setCursorLabel('')}
             >
               {/* Real High-Resolution Lunar Photograph */}
               <img
                 src={sourceImg}
-                alt={`${sourceInstrument} Lunar Observation`}
+                alt={`${sourceProduct.label || sourceInstrument}`}
                 className="absolute inset-0 w-full h-full object-cover grayscale contrast-125 brightness-95 transition-transform duration-500 group-hover:scale-[1.03]"
               />
 
               {/* Sensor Header Pill */}
               <div className="absolute top-4 left-4 z-30 flex items-center gap-2">
                 <span className="px-3 py-1 rounded bg-space-950/90 border border-cyan-accent font-mono-tech text-xs text-cyan-accent font-extrabold shadow-lg backdrop-blur-md">
-                  {sourceProduct.instrument}
+                  {sourceProduct.label ? sourceProduct.label.replace(/^Chandrayaan-2\s*/i, '').replace(/^OHRC\s*/i, '').split(' (')[0] : sourceProduct.instrument}
                 </span>
                 <span className="px-2 py-0.5 rounded bg-space-900/80 border border-white/10 font-mono-tech text-[10px] text-lunar-300 backdrop-blur-sm">
                   {sourceProduct.gsdDisplay} • {sourceProduct.modality.split('(')[0]}
@@ -161,21 +183,24 @@ export const DualImageComparator: React.FC = () => {
               {/* Real Sensor Reticle Lines */}
               <div className="absolute inset-0 pointer-events-none opacity-20 border-[16px] border-white/5" />
 
-              <div className="absolute bottom-4 left-4 z-30 font-mono-tech text-[10px] text-lunar-300 bg-space-950/90 px-2.5 py-1 rounded border border-white/10 backdrop-blur-md">
-                PRODUCT: {sourceProduct.productId}
+              <div 
+                className="absolute bottom-4 left-4 z-30 font-mono-tech text-[10px] text-lunar-300 bg-space-950/90 px-2.5 py-1 rounded border border-white/10 backdrop-blur-md truncate max-w-[80%]"
+                title={sourceProduct.label || sourceProduct.productId}
+              >
+                IMAGE: {sourceProduct.label ? sourceProduct.label.replace(/^Chandrayaan-2\s*/i, '').replace(/^OHRC\s*/i, '') : sourceProduct.productId}
               </div>
             </div>
 
             {/* TARGET IMAGE PANEL */}
             <div 
               className="relative h-full w-full overflow-hidden bg-space-950 group"
-              onMouseEnter={() => setCursorLabel(`INSPECT ${targetInstrument}`)}
+              onMouseEnter={() => setCursorLabel(`INSPECT ${targetProduct.label || targetInstrument}`)}
               onMouseLeave={() => setCursorLabel('')}
             >
               {/* Real Regional Lunar Photograph */}
               <img
                 src={targetImg}
-                alt={`${targetInstrument} Lunar Observation`}
+                alt={`${targetProduct.label || targetInstrument}`}
                 className="absolute inset-0 w-full h-full object-cover grayscale contrast-115 brightness-90 transition-transform duration-500 group-hover:scale-[1.03]"
               />
 
@@ -185,12 +210,15 @@ export const DualImageComparator: React.FC = () => {
                   {targetProduct.gsdDisplay} • {targetProduct.modality.split('(')[0]}
                 </span>
                 <span className="px-3 py-1 rounded bg-space-950/90 border border-amber-400 font-mono-tech text-xs text-amber-400 font-extrabold shadow-lg backdrop-blur-md">
-                  {targetProduct.instrument}
+                  {targetProduct.label ? targetProduct.label.replace(/^Chandrayaan-2\s*/i, '').replace(/^TMC-2\s*/i, '').split(' (')[0] : targetProduct.instrument}
                 </span>
               </div>
 
-              <div className="absolute bottom-4 right-4 z-30 font-mono-tech text-[10px] text-lunar-300 bg-space-950/90 px-2.5 py-1 rounded border border-white/10 backdrop-blur-md">
-                PRODUCT: {targetProduct.productId}
+              <div 
+                className="absolute bottom-4 right-4 z-30 font-mono-tech text-[10px] text-lunar-300 bg-space-950/90 px-2.5 py-1 rounded border border-white/10 backdrop-blur-md truncate max-w-[80%]"
+                title={targetProduct.label || targetProduct.productId}
+              >
+                IMAGE: {targetProduct.label ? targetProduct.label.replace(/^Chandrayaan-2\s*/i, '').replace(/^TMC-2\s*/i, '') : targetProduct.productId}
               </div>
             </div>
 

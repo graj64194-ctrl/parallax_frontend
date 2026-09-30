@@ -125,10 +125,22 @@ export interface AlignmentMetrics {
   evidenceType: EvidenceType;
   selectedModelName: string;
   tmcBridgeActive: boolean;
-  homographyMatrix: number[][]; // 3x3 matrix
-  processingTimeMs: number;
-  isBackendLive: boolean; // false = clearly designated as DEMO / BENCHMARK RESULT
+  transformationType?: 'HOMOGRAPHY' | 'AFFINE' | 'LOCAL_PIECEWISE' | 'SPLINE';
+  affineMatrix?: number[][]; // 2x3 matrix
+  sourceCoverage?: number; // e.g. 78.4%
+  targetCoverage?: number; // e.g. 71.9%
+  uniformityScore?: number; // e.g. 0.82
+  beforeRmse?: number; // e.g. 2.14 px
+  afterRmse?: number; // e.g. 1.28 px
+  refinementGain?: number; // e.g. -0.86 px
+  meanError?: number;
+  medianError?: number;
+  maxError?: number;
 }
+
+export type ViewerState = 'ORIGINAL' | 'PREPROCESSED' | 'REGISTERED';
+
+export type ObservabilityStatus = 'OBSERVABLE' | 'BLOCKED_NO_OVERLAP';
 
 export type MatchFilterType = 'ALL_FEATURES' | 'CANDIDATES' | 'INLIERS' | 'OUTLIERS' | 'ANMS_ONLY';
 

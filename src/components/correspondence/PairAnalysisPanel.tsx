@@ -6,6 +6,8 @@ export const PairAnalysisPanel: React.FC = () => {
   const { 
     sourceInstrument, 
     targetInstrument, 
+    sourceProduct,
+    targetProduct,
     pairCharacterization, 
     useTmcBridge, 
     toggleTmcBridge, 
@@ -77,8 +79,8 @@ export const PairAnalysisPanel: React.FC = () => {
             }`}>
               {pairCharacterization.modalityDifference}
             </div>
-            <div className="text-[10px] text-[#777775] font-mono-tech truncate">
-              {sourceInstrument} × {targetInstrument}
+            <div className="text-[10px] text-[#777775] font-mono-tech truncate" title={`${sourceProduct?.label || sourceInstrument} × ${targetProduct?.label || targetProduct?.productId || targetInstrument}`}>
+              {sourceProduct?.label ? sourceProduct.label.replace(/^Chandrayaan-2\s*/i, '').replace(/^(OHRC|TMC-2|IIRS)\s*/i, '').split(' (')[0] : sourceInstrument} × {targetProduct?.label ? targetProduct.label.replace(/^Chandrayaan-2\s*/i, '').replace(/^(OHRC|TMC-2|IIRS)\s*/i, '').split(' (')[0] : targetInstrument}
             </div>
           </div>
 

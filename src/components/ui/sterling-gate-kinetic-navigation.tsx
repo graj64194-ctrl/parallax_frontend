@@ -79,8 +79,18 @@ export function SterlingGateKineticNavigation() {
   const [hoveredIndex, setHoveredIndex] = useState<number>(0)
   const navigate = useNavigate()
   const location = useLocation()
-  const { explainMode, toggleExplainMode, sourceInstrument, targetInstrument, setCursorLabel } =
-    useParallax()
+  const { 
+    explainMode, 
+    toggleExplainMode, 
+    sourceInstrument, 
+    targetInstrument, 
+    sourceProduct,
+    targetProduct,
+    pairCharacterization,
+    metrics,
+    simulationParams,
+    setCursorLabel
+  } = useParallax()
 
   const overlayRef = useRef<HTMLDivElement>(null)
   const menuContentRef = useRef<HTMLDivElement>(null)
@@ -255,12 +265,16 @@ export function SterlingGateKineticNavigation() {
 
           {/* Right Controls: Telemetry Pill + Mode Toggle + Kinetic Menu Button */}
           <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-            {/* Active Pair Pill */}
-            <div className="hidden xl:flex items-center gap-2 px-2.5 py-1 rounded-none border border-[#262626] bg-[#161616] text-[11px] font-mono-tech text-[#A0A0A0]">
-              <Activity className="h-3 w-3 text-[#86D88E]" />
-              <span>{sourceInstrument}</span>
-              <span className="text-[#646462]">×</span>
-              <span>{targetInstrument}</span>
+            {/* Active Processed Images Pill */}
+            <div className="hidden xl:flex items-center gap-2 px-2.5 py-1 rounded-none border border-[#262626] bg-[#161616] text-[11px] font-mono-tech text-[#A0A0A0] max-w-md truncate">
+              <Activity className="h-3 w-3 text-[#86D88E] shrink-0" />
+              <span className="truncate text-[#F7F7F5]" title={sourceProduct?.label || sourceProduct?.productId || sourceInstrument}>
+                {sourceProduct?.label ? sourceProduct.label.replace('Chandrayaan-2 ', '').split(' (')[0] : sourceInstrument}
+              </span>
+              <span className="text-[#646462] shrink-0">×</span>
+              <span className="truncate text-[#F7F7F5]" title={targetProduct?.label || targetProduct?.productId || targetInstrument}>
+                {targetProduct?.label ? targetProduct.label.replace('Chandrayaan-2 ', '').split(' (')[0] : targetInstrument}
+              </span>
             </div>
 
             {/* Scientific vs Explain Mode Toggle */}
@@ -471,9 +485,11 @@ export function SterlingGateKineticNavigation() {
               {hoveredIndex === 3 && (
                 /* 04 CORRESPONDENCE: Bridge */
                 <div className="relative w-full flex items-center justify-between px-2">
-                  <div className="w-20 h-24 rounded-none border border-[#333333] bg-[#111111] flex flex-col items-center justify-center p-2 text-center">
-                    <span className="text-[10px] font-mono-tech text-[#F7F7F5] font-bold">OHRC</span>
-                    <span className="text-[8px] font-mono-tech text-[#8C8C89]">0.25 m/px</span>
+                  <div className="w-24 h-24 rounded-none border border-[#333333] bg-[#111111] flex flex-col items-center justify-center p-2 text-center overflow-hidden">
+                    <span className="text-[10px] font-mono-tech text-[#F7F7F5] font-bold truncate max-w-full" title={sourceProduct?.label}>
+                      {sourceProduct?.label ? sourceProduct.label.replace(/^Chandrayaan-2\s*/i, '').replace(/^(OHRC|TMC-2|IIRS)\s*/i, '').split(' (')[0] : sourceInstrument}
+                    </span>
+                    <span className="text-[8px] font-mono-tech text-[#8C8C89]">{sourceProduct?.gsdDisplay || '0.25 m/px'}</span>
                   </div>
                   <div className="flex-1 flex flex-col items-center justify-center px-2">
                     <span className="h-[1px] w-full bg-[#383838]" />
@@ -484,9 +500,11 @@ export function SterlingGateKineticNavigation() {
                       RANSAC + ANMS + ECC
                     </span>
                   </div>
-                  <div className="w-20 h-24 rounded-none border border-[#333333] bg-[#111111] flex flex-col items-center justify-center p-2 text-center">
-                    <span className="text-[10px] font-mono-tech text-[#F7F7F5] font-bold">TMC-2</span>
-                    <span className="text-[8px] font-mono-tech text-[#8C8C89]">5.0 m/px</span>
+                  <div className="w-24 h-24 rounded-none border border-[#333333] bg-[#111111] flex flex-col items-center justify-center p-2 text-center overflow-hidden">
+                    <span className="text-[10px] font-mono-tech text-[#F7F7F5] font-bold truncate max-w-full" title={targetProduct?.label}>
+                      {targetProduct?.label ? targetProduct.label.replace(/^Chandrayaan-2\s*/i, '').replace(/^(OHRC|TMC-2|IIRS)\s*/i, '').split(' (')[0] : targetInstrument}
+                    </span>
+                    <span className="text-[8px] font-mono-tech text-[#8C8C89]">{targetProduct?.gsdDisplay || '5.0 m/px'}</span>
                   </div>
                 </div>
               )}
@@ -495,17 +513,22 @@ export function SterlingGateKineticNavigation() {
                 /* 05 ANALYSIS: Error */
                 <div className="w-full flex flex-col items-center justify-center space-y-2">
                   <div className="text-2xl font-mono-tech font-bold text-[#F7F7F5]">
-                    1.28 <span className="text-xs text-[#8C8C89]">px RMSE</span>
+                    {metrics.candidateMatches > 0 ? metrics.rmse.toFixed(2) : '—'} <span className="text-xs text-[#8C8C89]">px RMSE</span>
                   </div>
                   <div className="text-[10px] font-mono-tech text-[#86D88E]">
-                    INLIER CONSENSUS: 81.4%
+                    {metrics.candidateMatches > 0 ? `INLIER CONSENSUS: ${metrics.inlierRatio.toFixed(1)}%` : 'CONSENSUS: AWAITING RUN'}
                   </div>
                   <div className="w-full bg-[#262626] h-1">
-                    <div className="bg-[#86D88E] h-full w-[81.4%]" />
+                    <div 
+                      className="bg-[#86D88E] h-full transition-all duration-300" 
+                      style={{ width: `${metrics.candidateMatches > 0 ? Math.min(100, metrics.inlierRatio) : 0}%` }} 
+                    />
                   </div>
                   <div className="flex justify-between w-full text-[9px] font-mono-tech text-[#8C8C89] pt-1">
                     <span>ANMS COVERAGE:</span>
-                    <span className="text-[#F7F7F5]">74.2%</span>
+                    <span className="text-[#F7F7F5]">
+                      {metrics.candidateMatches > 0 ? `${metrics.spatialCoverage.toFixed(1)}%` : '—'}
+                    </span>
                   </div>
                 </div>
               )}
@@ -515,17 +538,23 @@ export function SterlingGateKineticNavigation() {
                 <div className="w-full space-y-2 font-mono-tech text-[10px]">
                   <div className="flex justify-between text-[#8C8C89]">
                     <span>SOLAR INCIDENCE:</span>
-                    <span className="text-[#F7F7F5]">14.5° LOW SUN</span>
+                    <span className="text-[#F7F7F5]">{simulationParams.sunElevationAngle}° SUN</span>
                   </div>
                   <div className="w-full bg-[#262626] h-1">
-                    <div className="bg-[#E0A855] h-full w-[35%]" />
+                    <div 
+                      className="bg-[#E0A855] h-full" 
+                      style={{ width: `${Math.min(100, (simulationParams.sunElevationAngle / 80) * 100)}%` }} 
+                    />
                   </div>
                   <div className="flex justify-between text-[#8C8C89] pt-2">
                     <span>OCTAVE DISPARITY:</span>
-                    <span className="text-[#F7F7F5]">20:1 SCALE GAP</span>
+                    <span className="text-[#F7F7F5]">{pairCharacterization.scaleRatioDisplay} SCALE GAP</span>
                   </div>
                   <div className="w-full bg-[#262626] h-1">
-                    <div className="bg-[#86D88E] h-full w-[75%]" />
+                    <div 
+                      className="bg-[#86D88E] h-full" 
+                      style={{ width: `${Math.min(100, simulationParams.spatialScaleRatio * 4)}%` }} 
+                    />
                   </div>
                 </div>
               )}

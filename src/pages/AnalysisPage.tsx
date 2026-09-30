@@ -7,7 +7,14 @@ import { useParallax } from "../state/ParallaxContext"
 
 export const AnalysisPage: React.FC = () => {
   const navigate = useNavigate()
-  const { sourceInstrument, targetInstrument, selectedRegion } = useParallax()
+  const { 
+    sourceInstrument, 
+    targetInstrument, 
+    sourceProduct,
+    targetProduct,
+    selectedRegion, 
+    metrics 
+  } = useParallax()
 
   const handleGoToSimulator = () => {
     navigate("/simulator")
@@ -55,7 +62,7 @@ export const AnalysisPage: React.FC = () => {
               </h3>
               <p className="text-sm sm:text-base font-semibold text-[#222222] leading-relaxed font-sans">
                 The 8-degree-of-freedom planar homography matrix H maps homogeneous image coordinates
-                x = (u, v, 1)ᵀ in the reference OHRC frame to corresponding coordinates x&apos; in TMC-2:
+                x = (u, v, 1)ᵀ in the reference {sourceProduct?.label ? sourceProduct.label.replace(/^Chandrayaan-2\s*/i, '').split(' (')[0] : sourceInstrument} frame to corresponding coordinates x&apos; in {targetProduct?.label ? targetProduct.label.replace(/^Chandrayaan-2\s*/i, '').split(' (')[0] : targetInstrument}:
               </p>
               <div className="p-3 rounded-none bg-[#F0F0ED] border border-[#E2E2DE] text-[#111111] text-xs font-semibold">
                 x&apos; ~ H · x, where det(H) ≠ 0
@@ -80,15 +87,27 @@ export const AnalysisPage: React.FC = () => {
               <div className="space-y-1.5 pt-2 border-t border-[#E2E2DE] text-xs text-[#444444]">
                 <div className="flex items-center justify-between">
                   <span>CONFIRMED INLIERS:</span>
-                  <span className="text-[#246327] font-bold">326 MATCHES (81.4%)</span>
+                  <span className="text-[#246327] font-bold">
+                    {metrics.candidateMatches > 0
+                      ? `${metrics.inlierMatches} MATCHES (${metrics.inlierRatio.toFixed(1)}%)`
+                      : 'AWAITING PIPELINE RUN'}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-[#666663] text-[11px]">
                   <span>REJECTED OUTLIERS:</span>
-                  <span className="text-[#9E2A27] font-semibold">94 MATCHES (18.6%)</span>
+                  <span className="text-[#9E2A27] font-semibold">
+                    {metrics.candidateMatches > 0
+                      ? `${metrics.outlierMatches} MATCHES (${(100 - metrics.inlierRatio).toFixed(1)}%)`
+                      : '—'}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-[#111111] text-[11px]">
                   <span>ANMS CONVEX-HULL SPREAD:</span>
-                  <span className="font-semibold text-[#246327]">74.2% (TARGET &gt; 60%)</span>
+                  <span className="font-semibold text-[#246327]">
+                    {metrics.candidateMatches > 0
+                      ? `${metrics.spatialCoverage.toFixed(1)}% (TARGET > 60% ${metrics.spatialCoverage >= 60 ? 'MET' : 'PENDING'})`
+                      : '—'}
+                  </span>
                 </div>
               </div>
             </div>

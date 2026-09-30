@@ -144,7 +144,7 @@ export const InstrumentLabSection: React.FC = () => {
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="font-mono-tech text-[10px] text-lunar-400 uppercase">DIAGNOSED DIFFICULTY:</span>
+                <span className="font-mono-tech text-[10px] text-lunar-400 uppercase">PAIR DIFFICULTY:</span>
                 <span className={`px-2 py-0.5 rounded font-mono-tech text-xs font-bold uppercase ${
                   useParallax().pairCharacterization.overallDifficulty === 'Hard'
                     ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
@@ -152,18 +152,48 @@ export const InstrumentLabSection: React.FC = () => {
                     ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
                     : 'bg-match-green/20 text-match-green border border-match-green/40'
                 }`}>
-                  {useParallax().pairCharacterization.overallDifficulty} ({useParallax().pairCharacterization.scaleRatioDisplay})
+                  {useParallax().pairCharacterization.overallDifficulty}
                 </span>
               </div>
             </div>
 
-            <p className="text-sm sm:text-base font-medium text-white font-sans leading-relaxed">
+            {/* Structured Pair Diagnostics */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono-tech">
+              <div className="p-2.5 rounded bg-space-950/80 border border-white/10 space-y-0.5">
+                <span className="text-lunar-400 text-[10px] uppercase block">GSD GAP:</span>
+                <span className="text-white font-bold">~{useParallax().pairCharacterization.scaleRatio.toFixed(0)}× ({useParallax().pairCharacterization.scaleRatioDisplay})</span>
+              </div>
+              <div className="p-2.5 rounded bg-space-950/80 border border-white/10 space-y-0.5">
+                <span className="text-lunar-400 text-[10px] uppercase block">MODALITY:</span>
+                <span className="text-cyan-accent font-bold">
+                  {useParallax().sourceInstrument === 'IIRS' ? 'Hyperspectral' : 'Panchromatic'} → {useParallax().targetInstrument === 'IIRS' ? 'Hyperspectral' : useParallax().targetInstrument === 'TMC-2' ? 'Visible Stereo' : 'Panchromatic'}
+                </span>
+              </div>
+              <div className="p-2.5 rounded bg-space-950/80 border border-white/10 space-y-0.5">
+                <span className="text-lunar-400 text-[10px] uppercase block">RECOMMENDED ENGINE:</span>
+                <span className="text-match-green font-bold truncate block">{useParallax().selectedModel.name.split('(')[0]}</span>
+              </div>
+            </div>
+
+            <p className="text-sm font-medium text-white font-sans leading-relaxed">
               {useParallax().pairCharacterization.difficultyRationale}
             </p>
 
+            {/* Extreme scale bridge candidate strategy notice */}
+            {useParallax().pairCharacterization.suggestTmcBridge && (
+              <div className="p-3 rounded bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs font-mono-tech space-y-1">
+                <div className="font-bold flex items-center gap-1.5 text-amber-400">
+                  <span>TMC-2 INTERMEDIATE BRIDGE (CANDIDATE / PROPOSED STRATEGY)</span>
+                </div>
+                <p className="text-[11px] font-sans text-lunar-200">
+                  Extreme scale disparity ({useParallax().pairCharacterization.scaleRatioDisplay}). A two-hop bridge (OHRC → TMC-2 → IIRS) is proposed as a candidate strategy requiring multi-orbit empirical validation; not scientifically proven for every pair.
+                </p>
+              </div>
+            )}
+
             <div className="flex items-center justify-between pt-1">
               <span className="font-mono-tech text-[11px] text-cyan-300">
-                Recommended Engine: {useParallax().selectedModel.name.split('(')[0]}
+                Engine Suitability Score: {useParallax().selectedModel.suitabilityScore}/100
               </span>
               <button
                 onClick={() => {

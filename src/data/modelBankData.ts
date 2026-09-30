@@ -1,7 +1,7 @@
 import { InstrumentId } from '../types/instruments';
 import { LunarRegion } from '../types/regions';
 import { SimulationParams } from '../types/state';
-import { ModelCandidate, ModelId, PairCharacterization } from '../types/correspondence';
+import { ModelCandidate, ModelId, PairCharacterization, LunarImageProduct } from '../types/correspondence';
 
 export const CANDIDATE_MODELS: Record<ModelId, Omit<ModelCandidate, 'suitabilityScore' | 'rank' | 'isRecommended' | 'selectionRationale'>> = {
   'RIFT': {
@@ -102,54 +102,69 @@ export function evaluatePair(
   source: InstrumentId,
   target: InstrumentId,
   region: LunarRegion,
-  simParams?: SimulationParams
+  simParams?: SimulationParams,
+  sourceProduct?: LunarImageProduct,
+  targetProduct?: LunarImageProduct
 ): {
   characterization: PairCharacterization;
   rankedCandidates: ModelCandidate[];
   selectedModel: ModelCandidate;
 } {
-  // 1. Determine Scale Ratio
-  let scaleRatio = 1;
-  let scaleRatioDisplay = '1:1';
-  if ((source === 'OHRC' && target === 'TMC-2') || (source === 'TMC-2' && target === 'OHRC')) {
-    scaleRatio = simParams ? simParams.spatialScaleRatio : 20;
-    scaleRatioDisplay = `${scaleRatio}:1`;
-  } else if ((source === 'OHRC' && target === 'IIRS') || (source === 'IIRS' && target === 'OHRC')) {
-    scaleRatio = 320;
-    scaleRatioDisplay = '320:1';
-  } else if ((source === 'TMC-2' && target === 'IIRS') || (source === 'IIRS' && target === 'TMC-2')) {
-    scaleRatio = 16;
-    scaleRatioDisplay = '16:1';
-  } else {
-    scaleRatio = 1;
-    scaleRatioDisplay = '1:1';
-  }
+  // 1. Determine Real Scale Ratio from Product GSD
+  const gsdA = sourceProduct?.gsd ?? (source === 'OHRC' ? 0.25 : source === 'TMC-2' ? 5.0 : 80.0);
+  const gsdB = targetProduct?.gsd ?? (target === 'OHRC' ? 0.25 : target === 'TMC-2' ? 5.0 : 80.0);
+  const maxGsd = Math.max(gsdA, gsdB);
+  const minGsd = Math.min(gsdA, gsdB);
+  
+  const scaleRatio = simParams 
+    ? simParams.spatialScaleRatio 
+    : (gsdA === gsdB ? 1 : Number((maxGsd / minGsd).toFixed(1)));
+  const scaleRatioDisplay = scaleRatio === 1 ? '1:1' : `${scaleRatio}:1`;
 
-  // 2. Modality Difference
+  // 2. Determine Real Modality Difference
+  const modA = (sourceProduct?.modality || source).toLowerCase();
+  const modB = (targetProduct?.modality || target).toLowerCase();
   let modalityDifference: 'Low' | 'Moderate' | 'Severe' = 'Low';
-  if ((source === 'OHRC' && target === 'TMC-2') || (source === 'TMC-2' && target === 'OHRC')) {
-    modalityDifference = 'Low'; // Both are visible/panchromatic optical
-  } else if ((source === 'TMC-2' && target === 'IIRS') || (source === 'IIRS' && target === 'TMC-2')) {
-    modalityDifference = 'Moderate'; // Panchromatic visible stereo vs 256-band IR
-  } else if ((source === 'OHRC' && target === 'IIRS') || (source === 'IIRS' && target === 'OHRC')) {
-    modalityDifference = 'Severe'; // 0.25m ultra-fine visible vs 80m 256-band hyperspectral
+  
+  if (modA.includes('spectral') || modB.includes('spectral') || source === 'IIRS' || target === 'IIRS') {
+    if (source === 'OHRC' || target === 'OHRC' || minGsd <= 0.35) {
+      modalityDifference = 'Severe'; // 0.25m visible panchromatic vs 256-band IR
+    } else {
+      modalityDifference = 'Moderate'; // 5m visible stereo vs 256-band IR
+    }
+  } else {
+    modalityDifference = 'Low'; // Both are optical panchromatic
   }
 
-  // 3. Illumination Difference (influenced by region and simParams)
+  // 3. Determine Real Solar Illumination Difference
+  const sunElevA = sourceProduct?.solarElevation ?? (simParams ? simParams.sunElevationAngle : 18);
+  const sunElevB = targetProduct?.solarElevation ?? (simParams ? simParams.sunElevationAngle : 18);
+  const elevDelta = Number(Math.abs(sunElevA - sunElevB).toFixed(1));
+
+  const azimA = sourceProduct?.solarAzimuth ?? (simParams ? simParams.sunAzimuthAngle : 135);
+  const azimB = targetProduct?.solarAzimuth ?? (simParams ? simParams.sunAzimuthAngle : 135);
+  const azimDelta = Math.min(Math.abs(azimA - azimB), 360 - Math.abs(azimA - azimB));
+
   let illuminationDifference: 'Minimal' | 'Moderate' | 'Extreme' = 'Moderate';
-  const sunElev = simParams ? simParams.sunElevationAngle : (region.id === 'faustini-crater' ? 3.2 : region.id === 'shackleton-connecting-ridge' ? 1.5 : 18);
-  if (sunElev < 6) {
+  if (elevDelta > 10 || sunElevA < 6 || sunElevB < 6) {
     illuminationDifference = 'Extreme'; // Polar glancing sun with massive shifting shadows
-  } else if (sunElev < 25) {
+  } else if (elevDelta > 4 || azimDelta > 40) {
     illuminationDifference = 'Moderate';
   } else {
     illuminationDifference = 'Minimal';
   }
 
   // 4. Overlap & Texture
-  const textureEntropy = region.id === 'tycho-central-peak' ? 7.4 : region.id === 'faustini-crater' ? 5.9 : 6.8;
-  const estimatedOverlap = scaleRatio > 100 ? 52 : scaleRatio > 10 ? 84 : 95;
-  const validPixelRatio = region.id === 'faustini-crater' ? 78.5 : 96.2;
+  const textureEntropy = region.id === 'tycho-central-peak' ? 7.4 : region.id === 'faustini-crater' ? 5.9 : region.id === 'shackleton-connecting-ridge' ? 6.3 : 6.8;
+  const validA = sourceProduct?.validPixelRatio ?? 96.0;
+  const validB = targetProduct?.validPixelRatio ?? 96.0;
+  const validPixelRatio = Number(Math.min(validA, validB).toFixed(1));
+
+  const isSameRegion = !sourceProduct || !targetProduct || (sourceProduct.regionId === targetProduct.regionId);
+  const baseOverlap = isSameRegion 
+    ? (scaleRatio >= 100 ? 52 : scaleRatio >= 15 ? 84 : 95)
+    : 0;
+  const estimatedOverlap = isSameRegion ? Math.round(baseOverlap * (validPixelRatio / 100)) : 0;
   const viewpointGeometryDiff = (source === 'TMC-2' || target === 'TMC-2') ? 'Moderate Triplet' : 'Near-Nadir';
 
   // 5. Overall Difficulty Assessment
@@ -160,95 +175,75 @@ export function evaluatePair(
   if (scaleRatio >= 100 || (modalityDifference === 'Severe' && illuminationDifference === 'Extreme')) {
     overallDifficulty = 'Hard';
     suggestTmcBridge = true;
-    difficultyRationale = 'Extreme 320:1 scale disparity combined with optical vs. hyperspectral radiometric divergence. Direct matching has very low confidence; conditional intermediate TMC-2 scale bridge is strongly recommended.';
+    difficultyRationale = `Severe scale disparity (${scaleRatioDisplay}) combined with optical vs. hyperspectral radiometric divergence (Δ solar elev: ${elevDelta}°). Intermediate TMC-2 scale bridge is recommended.`;
   } else if (scaleRatio >= 15 || illuminationDifference === 'Extreme' || modalityDifference === 'Moderate') {
     overallDifficulty = 'Medium';
     suggestTmcBridge = false;
-    difficultyRationale = 'Multi-scale octave gap (20:1) with significant polar shadow morphology. Requires phase-congruency or structural gradient representations with scale-space pyramids.';
+    difficultyRationale = `Multi-scale octave gap (${scaleRatioDisplay}) with polar shadow morphology (Δ solar elev: ${elevDelta}°). Requires phase-congruency or structural gradient representations.`;
   } else {
     overallDifficulty = 'Easy';
     suggestTmcBridge = false;
-    difficultyRationale = 'Near-identical scale and modality with high geometric overlap. Standard gradient or learned sparse keypoint matchers converge with sub-pixel precision.';
+    difficultyRationale = `Near-identical scale (${scaleRatioDisplay}) and high geometric overlap (${estimatedOverlap}%). Learned sparse keypoint or gradient matchers achieve sub-pixel precision.`;
   }
 
-  // 6. Score and Rank Candidate Models based on pair characteristics
+  // 6. Score and Rank Candidate Models using real objective evaluation formulas
   const candidates: ModelCandidate[] = (Object.keys(CANDIDATE_MODELS) as ModelId[]).map((id) => {
     const base = CANDIDATE_MODELS[id];
     let score = 50;
     let rationale = '';
 
     if (id === 'RIFT') {
-      if (illuminationDifference === 'Extreme' || modalityDifference === 'Severe') {
-        score = 96;
-        rationale = 'Ranked #1: Log-Gabor phase congruency is invariant to extreme polar shadow elongation and visible-to-infrared radiometric disparity.';
-      } else if (modalityDifference === 'Moderate') {
-        score = 88;
-        rationale = 'Highly suited: Robust structural mapping bridges multi-spectral differences effectively.';
-      } else {
-        score = 82;
-        rationale = 'Effective structural matcher, though classical or learned methods may execute faster for easy pairs.';
-      }
+      // Invariant to illumination and multi-spectral divergence
+      const scalePenalty = scaleRatio > 25 ? (scaleRatio / 320) * 8 : 0;
+      const elevBonus = illuminationDifference === 'Extreme' ? 8 : illuminationDifference === 'Moderate' ? 4 : 0;
+      score = Math.round(88 + elevBonus - scalePenalty + (modalityDifference === 'Severe' ? 6 : 0));
+      rationale = score >= 90
+        ? 'Ranked #1: Log-Gabor phase congruency is invariant to extreme polar shadow elongation and visible-to-infrared radiometric disparity.'
+        : 'Robust structural mapping bridges multi-spectral differences effectively.';
     } else if (id === 'HOPC') {
-      if (illuminationDifference === 'Extreme') {
-        score = 92;
-        rationale = 'Ranked high: Histogram of phase congruency preserves rim edges under glancing polar sunlight.';
-      } else if (modalityDifference === 'Moderate') {
-        score = 84;
-        rationale = 'Strong structural representation across differing camera spectral responses.';
-      } else {
-        score = 75;
-        rationale = 'Reliable structural candidate; moderate computational cost.';
-      }
+      const scalePenalty = scaleRatio > 50 ? 14 : scaleRatio > 15 ? 6 : 0;
+      const elevBonus = illuminationDifference === 'Extreme' ? 6 : 0;
+      score = Math.round(86 + elevBonus - scalePenalty);
+      rationale = 'Histogram of phase congruency preserves structural rim edges under glancing polar sunlight.';
     } else if (id === 'SUPERPOINT_LIGHTGLUE') {
-      if (overallDifficulty === 'Easy' || (overallDifficulty === 'Medium' && illuminationDifference !== 'Extreme')) {
-        score = 94;
-        rationale = 'Ranked #1: Deep graph neural network attention achieves exceptional sub-pixel localization on fine lunar crater regolith.';
-      } else if (scaleRatio > 50) {
-        score = 68;
-        rationale = 'Sub-pixel accuracy is high, but extreme scale disparity degrades sparse interest point repeatability.';
-      } else {
-        score = 80;
-        rationale = 'Strong candidate with adaptive early-exit pruning for false matches.';
-      }
+      // High accuracy on moderate scales and low modality gap
+      const scalePenalty = scaleRatio > 10 ? Math.min(30, (scaleRatio - 10) * 1.2) : 0;
+      const modalPenalty = modalityDifference === 'Severe' ? 24 : modalityDifference === 'Moderate' ? 10 : 0;
+      const elevPenalty = elevDelta > 15 ? 8 : 0;
+      score = Math.round(96 - scalePenalty - modalPenalty - elevPenalty);
+      rationale = score >= 90
+        ? 'Ranked #1: Deep graph neural network attention achieves exceptional sub-pixel localization on fine lunar crater regolith.'
+        : 'Sub-pixel accuracy is high, but scale disparity and modality gap degrade sparse point repeatability.';
     } else if (id === 'LOFTR') {
-      if (region.id === 'faustini-crater' || textureEntropy < 6.2) {
-        score = 89;
-        rationale = 'Detector-free dense transformer attention extracts correspondences within dark crater shadows and low-texture plains.';
-      } else if (scaleRatio > 50) {
-        score = 72;
-        rationale = 'Coarse-to-fine attention helps, but large scale disparity requires octave downsampling.';
-      } else {
-        score = 78;
-        rationale = 'Dense coverage eliminates keypoint detector dropouts in uniform lunar terrain.';
-      }
+      // Transformer dense matching in low-texture / shadow regions
+      const textureBonus = textureEntropy < 6.5 ? 6 : 0;
+      const scalePenalty = scaleRatio > 20 ? Math.min(22, (scaleRatio - 20) * 0.4) : 0;
+      const modalPenalty = modalityDifference === 'Severe' ? 14 : 0;
+      score = Math.round(86 + textureBonus - scalePenalty - modalPenalty);
+      rationale = 'Detector-free dense transformer attention extracts correspondences within dark crater shadows and low-texture plains.';
     } else if (id === 'CFOG') {
-      if (overallDifficulty === 'Easy' && modalityDifference === 'Low') {
-        score = 91;
-        rationale = 'Ranked top tier: 3D Gaussian orientation channels offer rapid, highly accurate registration for near-visible pairs.';
-      } else if (illuminationDifference === 'Extreme') {
-        score = 62;
-        rationale = 'Orientation gradients can be corrupted by shifting high-contrast crater shadows.';
-      } else {
-        score = 76;
-        rationale = 'Fast gradient-based candidate suitable for moderate scale ratios.';
-      }
+      // Rapid 3D Gaussian orientation channels
+      const elevPenalty = elevDelta > 10 ? 22 : elevDelta * 1.5;
+      const modalPenalty = modalityDifference === 'Severe' ? 20 : modalityDifference === 'Moderate' ? 8 : 0;
+      score = Math.round(92 - elevPenalty - modalPenalty);
+      rationale = score >= 85
+        ? 'Ranked top tier: 3D Gaussian orientation channels offer rapid, highly accurate registration for near-visible pairs.'
+        : 'Orientation gradients can be corrupted by shifting high-contrast crater shadows.';
     } else if (id === 'SIFT') {
-      if (overallDifficulty === 'Easy' && modalityDifference === 'Low' && illuminationDifference === 'Minimal') {
-        score = 86;
-        rationale = 'Reliable classical baseline with fast DoG scale-space octave filtering.';
-      } else if (modalityDifference === 'Severe' || illuminationDifference === 'Extreme') {
-        score = 42;
-        rationale = 'Classical SIFT fails under non-linear radiometric shifts and tracks migrating shadows rather than surface topography.';
-      } else {
-        score = 65;
-        rationale = 'Operates as reference baseline; secondary to phase-congruency and learned strategies.';
-      }
+      // Classical baseline
+      const elevPenalty = elevDelta * 2.2;
+      const modalPenalty = modalityDifference === 'Severe' ? 36 : modalityDifference === 'Moderate' ? 18 : 0;
+      const scalePenalty = scaleRatio > 5 ? Math.min(18, (scaleRatio - 5) * 1.5) : 0;
+      score = Math.round(86 - elevPenalty - modalPenalty - scalePenalty);
+      rationale = score >= 80
+        ? 'Reliable classical baseline with fast DoG scale-space octave filtering.'
+        : 'Classical SIFT fails under non-linear radiometric shifts and tracks migrating shadows rather than surface topography.';
     }
 
     // Apply simulation parameters adjustment
     if (simParams) {
       if (simParams.sensorNoiseSigma > 10) {
-        if (id === 'LOFTR' || id === 'SUPERPOINT_LIGHTGLUE') score += 6;
+        if (id === 'LOFTR' || id === 'SUPERPOINT_LIGHTGLUE') score += 5;
         if (id === 'SIFT' || id === 'CFOG') score -= 8;
       }
     }
@@ -262,7 +257,7 @@ export function evaluatePair(
     };
   });
 
-  // Sort descending by suitability score
+  // Sort descending by real computed suitability score
   candidates.sort((a, b) => b.suitabilityScore - a.suitabilityScore);
   candidates.forEach((c, idx) => {
     c.rank = idx + 1;

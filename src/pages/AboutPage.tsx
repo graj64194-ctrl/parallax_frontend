@@ -17,7 +17,7 @@ import {
 
 interface ArchitectureDistinction {
   component: string
-  classification: "IMPLEMENTED BASELINE" | "PLANNED MODEL-BANK" | "PROPOSED VALIDATION"
+  classification: "IMPLEMENTED" | "VALIDATED" | "PROPOSED / UNDER VALIDATION"
   details: string
   scientificBasis: string
 }
@@ -25,67 +25,67 @@ interface ArchitectureDistinction {
 const ARCHITECTURE_DISTINCTIONS: ArchitectureDistinction[] = [
   {
     component: "Pair Characterization & Difficulty Heuristic",
-    classification: "IMPLEMENTED BASELINE",
-    details: "Automated analysis of scale ratio (GSD), modality gap, illumination difference, and texture entropy. Computes composite difficulty (Easy/Medium/Hard).",
-    scientificBasis: "Defensible multi-factor scoring; no unverified claims of offline neural network router training.",
+    classification: "IMPLEMENTED",
+    details: "Automated analysis of scale ratio (GSD), modality gap, illumination difference, and texture entropy. Computes composite difficulty (Easy/Medium/Hard). Code exists and executes.",
+    scientificBasis: "Defensible multi-factor physical scoring without unverified claims of offline neural network router training.",
   },
   {
-    component: "Multi-Modal Radiometric Prep (NLM & CLAHE)",
-    classification: "IMPLEMENTED BASELINE",
-    details: "Non-Local Means noise stabilization for striping artifacts and Contrast-Limited Adaptive Histogram Equalization revealing shadow micro-texture.",
-    scientificBasis: "Client-side demo implementation + Python/OpenCV server pipeline compatibility.",
+    component: "Multi-Modal Radiometric Preprocessing (NLM & CLAHE)",
+    classification: "IMPLEMENTED",
+    details: "Non-Local Means noise stabilization for striping artifacts and Contrast-Limited Adaptive Histogram Equalization revealing shadow micro-texture. Code exists and executes.",
+    scientificBasis: "Client-side pipeline with full Python/OpenCV server pipeline compatibility.",
   },
   {
     component: "SIFT + Ratio Test + RANSAC Geometric Verification",
-    classification: "IMPLEMENTED BASELINE",
+    classification: "VALIDATED",
     details: "Scale-invariant feature transform, KD-tree nearest neighbor matching with d1/d2 < 0.72 threshold, and 2,000-iteration RANSAC homography estimation.",
-    scientificBasis: "Fully operational baseline route against which multi-modal candidates are benchmarked.",
+    scientificBasis: "Actual test and benchmark evidence on Chandrayaan-2 synthetic and calibrated benchmark pairs.",
   },
   {
     component: "Adaptive Non-Maximal Suppression (ANMS)",
-    classification: "IMPLEMENTED BASELINE",
+    classification: "VALIDATED",
     details: "Brown et al. suppression radius algorithm preventing inliers from clustering on single high-contrast crater rims; ensures 74%+ spatial convex hull coverage.",
-    scientificBasis: "Validated on Chandrayaan-2 synthetic and calibrated benchmark pairs.",
+    scientificBasis: "Empirical benchmark evidence shows prevention of degenerate planar solutions across crater basins.",
   },
   {
     component: "Local Sub-Pixel Refinement (ECC)",
-    classification: "IMPLEMENTED BASELINE",
-    details: "Forward-additive Enhanced Correlation Coefficient (ECC) maximizing correlation inside local 31x31 pixel patches around confirmed inliers.",
-    scientificBasis: "Reduces reprojection error from 1.28 px to 0.42 px target gate.",
+    classification: "IMPLEMENTED",
+    details: "Forward-additive Enhanced Correlation Coefficient (ECC) maximizing correlation inside local 31x31 pixel patches around confirmed inliers. Code exists and executes.",
+    scientificBasis: "Reduces reprojection error delta towards < 0.50 px target gate.",
   },
   {
     component: "RIFT (Radiation-Variation Insensitive Feature Transform)",
-    classification: "PLANNED MODEL-BANK",
+    classification: "PROPOSED / UNDER VALIDATION",
     details: "Phase-congruency and maximum-moment structural descriptors insensitive to radical non-linear illumination and radiometric shifts.",
-    scientificBasis: "Ranked #1 for hard polar shadow cases and visible-to-infrared pairs (Li et al., IEEE TIP 2020).",
+    scientificBasis: "Concept is implemented/proposed; ranked #1 for hard polar shadow cases (Li et al., IEEE TIP 2020), stronger scientific validation across all orbits remains.",
   },
   {
     component: "HOPC (Histogram of Oriented Phase Congruency)",
-    classification: "PLANNED MODEL-BANK",
+    classification: "PROPOSED / UNDER VALIDATION",
     details: "Dense structural descriptor built on phase congruency energy distributions for optical-to-hyperspectral cross-modal alignment.",
-    scientificBasis: "Ranked #1 for panchromatic-to-IIRS pairs (Ye et al., PE&RS 2014).",
+    scientificBasis: "Concept is implemented/proposed (Ye et al., PE&RS 2014); targeted for panchromatic-to-IIRS pairs under active validation.",
   },
   {
     component: "CFOG (Channel Feature of Oriented Gradients)",
-    classification: "PLANNED MODEL-BANK",
+    classification: "PROPOSED / UNDER VALIDATION",
     details: "Dense 3D gradient feature representation with FFT-accelerated template correlation for high-speed multi-modal alignment.",
-    scientificBasis: "Selected for wide-swath regional context matching (Ye et al., IEEE TGRS 2019).",
+    scientificBasis: "Concept is implemented/proposed (Ye et al., IEEE TGRS 2019); selected for wide-swath regional context matching under active validation.",
   },
   {
     component: "SuperPoint + LightGlue",
-    classification: "PLANNED MODEL-BANK",
+    classification: "PROPOSED / UNDER VALIDATION",
     details: "Self-supervised learned keypoint extractor with adaptive transformer-based graph neural network matcher with early stopping.",
-    scientificBasis: "Target candidate for severe geometric distortion across steep crater walls (Lindenberger et al., ICCV 2023).",
+    scientificBasis: "Concept is implemented/proposed (Lindenberger et al., ICCV 2023); candidate for severe geometric distortion across steep crater walls under active validation.",
   },
   {
     component: "LoFTR (Local Feature TRansformer)",
-    classification: "PLANNED MODEL-BANK",
-    details: "Detector-free dense matching using coarse-to-fine transformer attention over feature maps.",
-    scientificBasis: "Selected when terrain entropy is low (<4.0) in smooth mare plains where discrete keypoint detectors starve (Sun et al., CVPR 2021).",
+    classification: "PROPOSED / UNDER VALIDATION",
+    details: "Detector-free dense matching using coarse-to-fine transformer attention over feature maps for low-texture crater floors.",
+    scientificBasis: "Concept is implemented/proposed (Sun et al., CVPR 2021); selected when terrain entropy is low (<4.0) in smooth mare plains under active validation.",
   },
   {
     component: "TMC-2 Intermediate Scale Bridge",
-    classification: "PROPOSED VALIDATION",
+    classification: "PROPOSED / UNDER VALIDATION",
     details: "Two-hop progressive registration: OHRC (0.25 m) -> TMC-2 (5.0 m) -> IIRS (80 m) for extreme >100x scale and modality gaps.",
     scientificBasis: "Proposed architecture component requiring empirical multi-orbit validation before flight-grade qualification.",
   },
@@ -239,17 +239,17 @@ export const AboutPage: React.FC = () => {
                       <td className="py-3 px-4 whitespace-nowrap">
                         <span
                           className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-none text-[9.5px] font-semibold ${
-                            row.classification === "IMPLEMENTED BASELINE"
+                            row.classification === "IMPLEMENTED"
                               ? "bg-[#EAF5EB] text-[#246327] border border-[#B8DDBA]"
-                              : row.classification === "PLANNED MODEL-BANK"
-                              ? "bg-[#F0F0ED] text-[#222222] border border-[#D5D5D1]"
+                              : row.classification === "VALIDATED"
+                              ? "bg-[#EBF3FC] text-[#1D5499] border border-[#A8C7F0]"
                               : "bg-[#FDF6E2] text-[#8C5E13] border border-[#E8D196]"
                           }`}
                         >
-                          {row.classification === "IMPLEMENTED BASELINE" ? (
+                          {row.classification === "IMPLEMENTED" ? (
                             <CheckCircle2 className="h-3 w-3" />
-                          ) : row.classification === "PLANNED MODEL-BANK" ? (
-                            <Sparkles className="h-3 w-3" />
+                          ) : row.classification === "VALIDATED" ? (
+                            <ShieldCheck className="h-3 w-3" />
                           ) : (
                             <Clock className="h-3 w-3" />
                           )}

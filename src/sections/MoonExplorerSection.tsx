@@ -132,13 +132,20 @@ export const MoonExplorerSection: React.FC = () => {
 
             {/* Launch Correspondence Actions */}
             <div className="space-y-3 pt-3 border-t border-[#262626]">
-              <div className="flex items-center justify-between font-mono-tech text-[10px] text-[#8C8C89]">
-                <span>AVAILABLE PAYLOADS:</span>
-                <div className="flex items-center gap-1">
+              {/* Region-to-Observation Product Discovery */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between font-mono-tech text-[10px] text-[#8C8C89]">
+                  <span className="uppercase tracking-wider">AVAILABLE OBSERVATIONS ({selectedRegion.name.toUpperCase()}):</span>
+                  <span className="text-[#86D88E] font-semibold">CATALOGUE MATCH</span>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5 font-mono-tech text-[10px]">
                   {selectedRegion.availableInstruments.map(inst => (
-                    <span key={inst} className="px-1.5 py-0.5 bg-[#111111] border border-[#262626] text-[#F7F7F5] font-semibold">
-                      {inst}
-                    </span>
+                    <div key={inst} className="p-1.5 bg-[#111111] border border-[#262626] text-center space-y-0.5">
+                      <div className="text-[#F7F7F5] font-bold">{inst}</div>
+                      <div className="text-[9px] text-[#8C8C89]">
+                        {inst === 'OHRC' ? '0.25 m/px' : inst === 'TMC-2' ? '5.0 m/px' : '80 m/px'}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
