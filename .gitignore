@@ -1,7 +1,56 @@
+################################
+# Node / frontend
+################################
 node_modules/
 dist/
 .playwright-mcp/
+
+################################
+# Environment files
+################################
 .env
 .env*.local
 .env.local
+
+################################
+# OS / editor artefacts
+################################
 .DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+################################
+# Python
+################################
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+################################
+# Dev / junk artefacts
+# (delete P001_files.txt and backend_tree.txt if still present, or keep
+#  this rule so they are never committed again)
+################################
+P001_files.txt
+backend_tree.txt
+*_files.txt
+*_tree.txt
+
+################################
+# Data — do NOT commit large mission datasets
+################################
+data/preprocessed/
+data/raw/

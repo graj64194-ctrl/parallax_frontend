@@ -1,0 +1,80 @@
+# ---------------------------------------------------------------------------
+# .github/workflows/ci.yml
+#
+# Runs on every push and pull-request:
+#   - Python backend: lint (ruff) + type-check (mypy) + pytest
+#   - Frontend: Node install + Vite build
+# ---------------------------------------------------------------------------
+
+name: CI
+
+on:
+  push:
+    branches: ["main", "master", "dev"]
+  pull_request:
+    branches: ["main", "master", "dev"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# ---------------------------------------------------------------------------
+# Backend job — Python
+# ---------------------------------------------------------------------------
+jobs:
+  backend:
+    name: Backend (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install package (editable) + dev extras
+        run: pip install -e ".[dev]"
+
+      - name: Lint with ruff
+        run: ruff check src/ scripts/ tests/
+
+      - name: Type-check with mypy
+        run: mypy src/parallex --ignore-missing-imports
+        continue-on-error: true   # Remove once type stubs are complete
+
+      - name: Run pytest
+        run: pytest --tb=short -q
+
+  # ---------------------------------------------------------------------------
+  # Frontend job — Node / Vite
+  # ---------------------------------------------------------------------------
+  frontend:
+    name: Frontend (Node 20)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          # Provide a placeholder so the build doesn't fail on missing env vars
+          VITE_API_BASE_URL: http://localhost:8000
